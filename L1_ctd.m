@@ -36,9 +36,9 @@ F2 = [131 329];
 epN = load("data\hot_fluo_L1_L2.mat").meanEpN;
 epN = epN(1:76,F2(1):F2(2));
 pIn = 0:2:150;
-maxMld = load("output/mldVals.mat").maxMld;
+maxMld = load("data/hot_mld.mat").maxMld;
 
-ctdData = load("data\hot_ctd.mat").ctd;
+ctdData = load("data\hot_ctd-ctd.mat").ctd;
 msng = [21, 48, 207, 218, 276];
 cR = 1:1:329;
 cRm = setdiff(cR,msng);

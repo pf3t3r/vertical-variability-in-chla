@@ -5,8 +5,8 @@ addpath("baroneRoutines\"); addpath("func\"); addpath("output\");
 set(groot,'defaultFigureUnits','centimeters','defaultFigurePosition',[3 3 15 15]);
 
 % Load MLD and DCM
-maxMld = load('mldVals.mat').maxMld;
-dcm = load("dcm.mat").meanPcm;  
+maxMld = load('data/hot_mld.mat').maxMld;
+dcm = load("data/hot_dcm.mat").meanPcm;  
 
 % Assign lower bound on pressure
 lowerP = 129;
@@ -14,10 +14,10 @@ pIn = 0:2:2*(lowerP-1);
 
 % Options and Test Cases.
 thresh = 30;
-principalAnalysisAd = false;
+principalAnalysisAd = true;
 principalAnalysisKs = false;
-setUpSeasonalAnalysis = true;
-seasonalAnalysisAd = true;
+setUpSeasonalAnalysis = false;
+seasonalAnalysisAd = false;
 seasonalAnalysisKs = false;
 dists = 2;                      % 2 = norm + logn;
                                 % 4 = norm + logn + weib + gamm
@@ -30,8 +30,8 @@ end
 
 %% Load hydrographical variables
 
-ctdData = load("data\hot_ctd.mat").iso;
-timeData = load("data\hot_ctd.mat").ctd;
+ctdData = load("data\hot_ctd-iso.mat").ctdData;
+timeData = load("data\hot_ctd-ctd.mat").ctd;
 msng = [21, 48, 207, 218, 276];
 cR = 1:1:329;
 cRm = setdiff(cR,msng);
