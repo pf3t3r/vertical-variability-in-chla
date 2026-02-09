@@ -204,7 +204,7 @@ if principle == true
     tmp = importdata('data/hot_chla.txt');
     L0_helper(tmp,thresh,'ad');
     if showL0title == true
-        sgtitle("L0 chl-$a$"+tmpX,"Interpreter","latex");
+        sgtitle("L0"+tmpX,"Interpreter","latex");
     end
 
     % chlb

@@ -31,6 +31,7 @@ compareCaseEsts = false;    % Set to TRUE to compare the three different
                             % NOTE that Case 3 is faulty...
 compareTermsInG3 = false;   % Set to TRUE to show plot comparing size of 
                             % terms in Case 3 (g3).
+caseTwo = false;            % Run Case 2. Needs other cases to be set to TRUE also.
 showFft = false;             % Show FFT of CHL at Stn ALOHA.
 applyCorrelations = false;  % Set to TRUE to calculate correlation between 
                             % total derivative, advection, and local
@@ -41,6 +42,37 @@ histfitOrGram = false;      % If TRUE, use histfit. Else use histogram.
                             % comparison.
 ptEast = false;              % Apply advective analysis to point 500km east 
                             % of Stn ALOHA.
+% largerCross = true;        % Do cross analysis on larger gradient.
+integrateTerms = false;
+
+
+grid1 = [50 51 48 49 4266 4626]; % Smallest possible grid.
+grid2 = [49 52 47 50 12820 13900]; % 2nd-smallest.
+grid3 = [48 53 46 51 21370 23170]; % 3rd-smallest.
+grid4 = [47 54 45 52 29900 32420]; % 4th-smallest.
+grid5 = [46 55 44 53 38450 41700];
+grid6 = [45 56 43 54 47010 50970];
+grid7 = [44 57 42 55 55540 60220];
+grid8 = [43 58 41 56 64090 69500];
+grid9 = [42 59 40 57 72640 78770];
+gridX = [41 60 39 58 85450 88020];
+grid = grid2;
+
+% Better way to handle varying cross size.
+if ptEast == true
+
+    crs.dims = [24 25 24 25 4266 4626];
+else
+    crs.dims = grid;
+    % Smallest grid
+%     crs.dims = [50 51 48 49 4266 4626];
+% 
+%     % Next biggest.
+%     %crs.dims = [49 52 47 50 12820 13900];
+%     crs.dims = [49 52 47 50 12820 13900];
+%     % And next...
+%     crs.dims = [48 53 46 51 21370 23170];
+end
 %% View OSCAR.
 
 info = ncinfo("..\..\Large Data Files\OSCAR2\oscar_currents_final_19970408.nc");
@@ -227,17 +259,20 @@ if ptEast == true
     A = 1; B = 9101;                    % Time limits. (1 = Sep 04 1997, 
                                     % 9101 = Aug 04 2022)
 end
-%% Calculate DC/Dt + u.GRAD(c).
+%% Show satellite CHL.
 
 % Evaluate at point EAST of Stn ALOHA. Otherwise (if false) evaluate at Stn
 % ALOHA.
-if ptEast == true
-    CHL_study = squeeze(CHL(24,24,A:B));
-else
-    % CHL at Stn ALOHA. Average of four nearest points. [Units = mg.m-3].
-    CHL_study = squeeze(mean([CHL(50,49,A:B) CHL(51,49,A:B) CHL(50,48,A:B) CHL(51,48,A:B)],2,"omitnan"));
+% if ptEast == true
+%     %CHL_study = squeeze(CHL(24,24,A:B));
+%     CHL_study = squeeze(mean([CHL(crs.dims(1),crs.dims(4),A:B) CHL(crs.dims(2),crs.dims(4),A:B) CHL(crs.dims(1),crs.dims(3),A:B) CHL(crs.dims(2),crs.dims(3),A:B)],2,"omitnan"));
+% else
+%     % CHL at Stn ALOHA. Average of four nearest points. [Units = mg.m-3].
+%     %CHL_study = squeeze(mean([CHL(50,49,A:B) CHL(51,49,A:B) CHL(50,48,A:B) CHL(51,48,A:B)],2,"omitnan"));
+%     CHL_study = squeeze(mean([CHL(crs.dims(1),crs.dims(4),A:B) CHL(crs.dims(2),crs.dims(4),A:B) CHL(crs.dims(1),crs.dims(3),A:B) CHL(crs.dims(2),crs.dims(3),A:B)],2,"omitnan"));
+% end
+CHL_study = squeeze(mean([CHL(crs.dims(1),crs.dims(4),A:B) CHL(crs.dims(2),crs.dims(4),A:B) CHL(crs.dims(1),crs.dims(3),A:B) CHL(crs.dims(2),crs.dims(3),A:B)],2,"omitnan"));
 
-end
 
 % edges = -3e-7:2.5e-8:3e-7;
 figure;
@@ -251,28 +286,63 @@ end
 xlabel("Concentration (mg m$^{-3}$)",Interpreter="latex");
 ylabel("No. of Counts",Interpreter="latex");
 
+figure;
+histfit(CHL_study,100,"lognormal");
+hold on
+% 2. A-D Test.
+[h,p] = adtest(CHL_study,"Distribution","logn");
+if h == 1, txt = "Not lognormal (p = "+num2str(p)+")"; end
+% 3. Skewness-Kurtosis.
+mn = mean(CHL_study,1,"omitnan"); st = std(CHL_study,[],1,"omitnan");
+sk = [skewness(CHL_study)];
+ku = [kurtosis(CHL_study)];
+TXT = {"Mean = "+mn,"STD = "+st,"Skewness = "+num2str(sk),"Kurtosis = "+num2str(ku), txt};
+annotation('textbox',[.60 .67 .30 .20],'String',TXT,'FontSize',9); 
+hold off
+legend("Data","Lognormal",Location="best"); xlabel("Concentration (mg m$^{-3}$)",Interpreter="latex"); ylabel("No. of Counts",Interpreter="latex"); title("Stn ALOHA: Satellite CHLA 1997-2022",Interpreter="latex");
+
+%% Calculate dc/dt and advection term.
+
+
 % dc/dt at Station ALOHA. 
 % Divide by 86400 to convert from [day-1] to [s-1].
 % [Units = mg.m-3.s-1].
 % Label EUL for Eulerian (Local Change).
-EUL = (1/86400) * diff(CHL_study); 
+EUL = NaN(length(CHL_study),1);
+EUL(1) = 5e-8; % Assume as starting value b/c mean(abs(EUL(2:end))) ~ 5e-8
+EUL(2:end) = (1/86400) * diff(CHL_study); 
 
 % CHL Gradient in X and Y. [Units of mg.m-3.m-1. = mg.m-4].
 if ptEast == true
-    gradCX = squeeze ( 0.5*( (CHL(25,24,A:B) - CHL(24,24,A:B)) + (CHL(25,25,A:B) - CHL(24,25,A:B)) ) ./ 4266);
-    gradCY = squeeze ( 0.5*( (CHL(24,25,A:B) - CHL(24,24,A:B)) + (CHL(25,25,A:B) - CHL(25,24,A:B)) ) ./ 4266 );
+    %gradCX = squeeze ( 0.5*( (CHL(25,24,A:B) - CHL(24,24,A:B)) + (CHL(25,25,A:B) - CHL(24,25,A:B)) ) ./ 4266);
+    gradCX = squeeze ( 0.5*( (CHL(crs.dims(2),crs.dims(4),A:B) - CHL(crs.dims(1),crs.dims(4),A:B)) + (CHL(crs.dims(2),crs.dims(3),A:B) - CHL(crs.dims(1),crs.dims(3),A:B)) ) ./ crs.dims(5));
+    %gradCY = squeeze ( 0.5*( (CHL(24,25,A:B) - CHL(24,24,A:B)) + (CHL(25,25,A:B) - CHL(25,24,A:B)) ) ./ 4266 );
+    gradCY = squeeze ( 0.5*( (CHL(crs.dims(2),crs.dims(4),A:B) - CHL(crs.dims(2),crs.dims(3),A:B)) + (CHL(crs.dims(1),crs.dims(4),A:B) - CHL(crs.dims(1),crs.dims(3),A:B)) ) ./ crs.dims(6) );
+
+%     if largerCross == true
+%         gradCX = squeeze ( 0.5*( (CHL(26,26,A:B) - CHL(26,23,A:B)) + (CHL(26,23,A:B) - CHL(23,23,A:B)) ) ./ 12820);
+%         gradCY = squeeze ( 0.5*( (CHL(26,26,A:B) - CHL(26,23,A:B)) + (CHL(23,26,A:B) - CHL(23,23,A:B)) ) ./ 13900 );
+% 
+%     end
 else
-    gradCX = squeeze ( 0.5*( (CHL(51,49,A:B) - CHL(50,49,A:B)) + (CHL(51,48,A:B) - CHL(50,48,A:B)) ) ./ 4266);
-    gradCY = squeeze ( 0.5*( (CHL(51,49,A:B) - CHL(51,48,A:B)) + (CHL(50,49,A:B) - CHL(50,48,A:B)) ) ./ 4626 );
+    %gradCX = squeeze ( 0.5*( (CHL(51,49,A:B) - CHL(50,49,A:B)) + (CHL(51,48,A:B) - CHL(50,48,A:B)) ) ./ 4266);
+    gradCX = squeeze ( 0.5*( (CHL(crs.dims(2),crs.dims(4),A:B) - CHL(crs.dims(1),crs.dims(4),A:B)) + (CHL(crs.dims(2),crs.dims(3),A:B) - CHL(crs.dims(1),crs.dims(3),A:B)) ) ./ crs.dims(5));
+    %gradCY = squeeze ( 0.5*( (CHL(51,49,A:B) - CHL(51,48,A:B)) + (CHL(50,49,A:B) - CHL(50,48,A:B)) ) ./ 4626 );
+    gradCY = squeeze ( 0.5*( (CHL(crs.dims(2),crs.dims(4),A:B) - CHL(crs.dims(2),crs.dims(3),A:B)) + (CHL(crs.dims(1),crs.dims(4),A:B) - CHL(crs.dims(1),crs.dims(3),A:B)) ) ./ crs.dims(6) );
+%     if largerCross == true
+%         gradCX = squeeze ( 0.5*( (CHL(52,50,A:B) - CHL(49,50,A:B)) + (CHL(52,47,A:B) - CHL(49,47,A:B)) ) ./ 12820);
+%         gradCY = squeeze ( 0.5*( (CHL(52,50,A:B) - CHL(52,47,A:B)) + (CHL(49,50,A:B) - CHL(49,47,A:B)) ) ./ 13900 );
+%     end
 end
 % Case 1. Advective Change in Concentration [Units of mg.m-3.s-1].
 % c(du/dx + dv/dy) assumed to be zero. Label as ADV for ADVection.
-ADV_1 = u(149:9249).*gradCX' + v(149:9249).*gradCY';
+ADV = u(149:9249).*gradCX' + v(149:9249).*gradCY';
 
 % Residual (TOTAL DC/Dt) for Case 1.
-% Label as TD for Total Derivative. Units = mg.m-3.s-1.
-TD = EUL + ADV_1(2:end)';
+% Label as LAG for Lagrangian. Units = mg.m-3.s-1.
+LAG = EUL + ADV';
 
+if caseTwo == true
 % Case 2. Advective Change in Concentration INCLUDING velocity gradients.
 % <=> c(du/dx + dv/dy) NOT assumed to be zero
 % [Units of mg.m-3.s-1]
@@ -284,13 +354,14 @@ gradU = (uR(149:9249,2) - uR(149:9249,4))./dxx;
 gradV = (vR(149:9249,1) - vR(149:9249,3))./dyy;
 % Calculate total advective component. Grad.(u.c).
 % g2 = u(149:9249).*gradCX' + v(149:9249).*gradCY' + CHL_ALOHA'.*gradU' + CHL_ALOHA'.*gradV';
-g2 = ADV_1 + CHL_study'.*gradU' + CHL_study'.*gradV';
+g2 = ADV + CHL_study'.*gradU' + CHL_study'.*gradV';
 T1 = u(149:9249).*gradCX';
 T2 = v(149:9249).*gradCY';
 T3 = CHL_study'.*gradU';
 T4 = CHL_study'.*gradV';
 % Residual for Case 2.
-dcdt_2 = EUL - g2(2:end)';
+dcdt_2 = EUL - g2';
+end
 
 % % Case 3. Calculate grad(cu) in one without using chain rule.
 % % Find CHL at each of four points.... [mg.m-3]
@@ -316,14 +387,16 @@ dcdt_2 = EUL - g2(2:end)';
 % dcdt_3 = EUL - g3(2:end);
 
 % Fill missing values.
-Af = fillmissing(ADV_1,"nearest");
-g2f = fillmissing(g2,"nearest");
-% g3f = fillmissing(g3,"nearest");
+Af = fillmissing(ADV,"nearest");
 Ef = fillmissing(EUL,"nearest");
-dcdt1f = fillmissing(TD,"nearest");
-dcdt2f = fillmissing(dcdt_2,"nearest");
-% dcdt3f = fillmissing(dcdt_3,"nearest");
+dcdt1f = fillmissing(LAG,"nearest");
 CHLf = fillmissing(CHL_study,"nearest");
+if caseTwo == true
+    g2f = fillmissing(g2,"nearest");
+    dcdt2f = fillmissing(dcdt_2,"nearest");
+end
+% g3f = fillmissing(g3,"nearest");
+% dcdt3f = fillmissing(dcdt_3,"nearest");
 
 % if applyCorrelations == true
 %     % CALCULATE the correlation of DC/Dt with each of the three advection
@@ -337,15 +410,15 @@ CHLf = fillmissing(CHL_study,"nearest");
 %% 40-Day approach.
 
 dCdt_40 = movmean(EUL,40,1,"omitnan");
-g1_40 = movmean(ADV_1,40,2,"omitnan");
+g1_40 = movmean(ADV,40,2,"omitnan");
 
 figure
-plot(time(A+1:B),EUL); hold on
-plot(time(A+1:B),dCdt_40); hold off
+plot(time(A:B),EUL); hold on
+plot(time(A:B),dCdt_40); hold off
 
-dcdt_40 = dCdt_40 - g1_40(2:end)';
+dcdt_40 = dCdt_40 - g1_40';
 
-if applyCorrelations == true, rho40 = corr(dcdt_40,g1_40(2:end)'); end
+if applyCorrelations == true, rho40 = corr(dcdt_40,g1_40'); end
 
 means_40m = [mean(abs(dCdt_40),1,"omitnan") mean(abs(dcdt_40),1,"omitnan") mean(abs(g1_40),2,"omitnan")];
 
@@ -354,12 +427,12 @@ means_40m = [mean(abs(dCdt_40),1,"omitnan") mean(abs(dcdt_40),1,"omitnan") mean(
 % SHOW surface CHL and DC/DT at Stn ALOHA. [mg.m-3]
 figure; subplot(2,1,1); plot(time(A:B),CHL_study); ylabel("CHL [mg m$^{-3}$]","FontSize",12,Interpreter="latex");
 title("Surface CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
-subplot(2,1,2); plot(time(A+1:B),EUL); ylabel("$\frac{D [CHL]}{Dt}$ [mg m$^{-3}$ day$^{-1}]$",Interpreter="latex",FontSize=12);
+subplot(2,1,2); plot(time(A:B),EUL); ylabel("$\frac{D [CHL]}{Dt}$ [mg m$^{-3}$ day$^{-1}]$",Interpreter="latex",FontSize=12);
 title("CHL Change over Time","FontSize",12,Interpreter="latex");
 
 % SHOW Advective Change over Time. (Case One estimate)
 figure;
-plot(time(A:B),ADV_1,Color="b"); hold on
+plot(time(A:B),ADV,Color="b"); hold on
 plot(time(A:B),Af,"LineStyle",":",Color="b"); 
 hold off
 ylabel("Advection [mg m$^{-3}$ s$^{-1}$]","FontSize",12,Interpreter="latex");
@@ -374,7 +447,7 @@ if compareCaseEsts == true
     % (u2c4 - u1c3)/dx + (v2c2 - v1c1)/dy.
     figure; 
     subplot(2,1,1)
-    plot(time(A:B),ADV_1,"LineWidth",1.5,"Color","k",DisplayName="Case 1"); hold on
+    plot(time(A:B),ADV,"LineWidth",1.5,"Color","k",DisplayName="Case 1"); hold on
     plot(time(A:B),Af,"LineWidth",1,"LineStyle",":","Color","k",HandleVisibility="off"); 
     plot(time(A:B),g2,"LineWidth",1.5,"Color","b",DisplayName="Case 2"); 
     plot(time(A:B),g2f,"LineWidth",1,"LineStyle",":","Color","b",HandleVisibility="off");
@@ -384,7 +457,7 @@ if compareCaseEsts == true
     ylabel("Advection [mg m$^{-3}$ s$^{-1}$]",Interpreter="latex"); 
     title("Comparison of Advection Estimates"); legend();
     subplot(2,1,2)
-    semilogy([1 2 3],[mean(abs(ADV_1),2,"omitnan") mean(abs(g2),2,"omitnan") mean(abs(g3),1,"omitnan")],"o-",DisplayName="Cases"); 
+    semilogy([1 2 3],[mean(abs(ADV),2,"omitnan") mean(abs(g2),2,"omitnan") mean(abs(g3),1,"omitnan")],"o-",DisplayName="Cases"); 
     title("Scale Analysis of Advection Estimates"); legend(); xticks([1 2 3]); xticklabels([1 2 3]);
 end
 
@@ -411,54 +484,57 @@ end
 % EUL = EUL;
 
 % Advection, Eulerian
-means = [mean(abs(ADV_1),2,"omitnan") mean(abs(EUL),1,"omitnan") mean(abs(TD),1,"omitnan")]; % mean(abs(g2),2,"omitnan") mean(abs(g3),1,"omitnan") mean(abs(dcdt_1),1,"omitnan") mean(abs(dcdt_2),1,"omitnan") ];
-medians = [median(abs(ADV_1),2,"omitnan") median(abs(EUL),1,"omitnan") median(abs(TD),1,"omitnan")]; % median(abs(g2),2,"omitnan") median(abs(g3),1,"omitnan")];
+means = [mean(abs(ADV),2,"omitnan") mean(abs(EUL),1,"omitnan") mean(abs(LAG),1,"omitnan")]; % mean(abs(g2),2,"omitnan") mean(abs(g3),1,"omitnan") mean(abs(dcdt_1),1,"omitnan") mean(abs(dcdt_2),1,"omitnan") ];
+medians = [median(abs(ADV),2,"omitnan") median(abs(EUL),1,"omitnan") median(abs(LAG),1,"omitnan")]; % median(abs(g2),2,"omitnan") median(abs(g3),1,"omitnan")];
 % modes = [mode(abs(E),1)/86400 mode(abs(g1),2) mode(abs(g2),2) mode(abs(g3),1)];
 % g3sss = [mean(abs(g3),1,"omitnan") mean(abs(g3_1),1,"omitnan") mean(abs(g3_2),1,"omitnan")];
 
-stds = [std(abs(ADV_1),"omitnan") std(abs(EUL),"omitnan") std(abs(TD),"omitnan")];
+stds = [std(abs(ADV),"omitnan") std(abs(EUL),"omitnan") std(abs(LAG),"omitnan")];
 % 40 Days done in previous section.
 
-
-% 1/3 Year. 120 Days.
-EUL_120 = movmean(EUL,120,1,"omitnan");
-g1_120 = movmean(ADV_1,120,2,"omitnan");
-% figure
-% plot(time(A+1:B),EUL); hold on
-% plot(time(A+1:B),DCDt_120); hold off
-means_120 = [mean(abs(EUL_120),1,"omitnan") mean(abs(g1_120),2,"omitnan")];
-std_120 = [std(abs(EUL_120),"omitnan") std(abs(g1_120),"omitnan")];
-
-% 1/2 Year. 180 Days.
-EUL_180 = movmean(EUL,180,1,"omitnan");
-g1_180 = movmean(ADV_1,180,2,"omitnan");
-means_180 = [mean(abs(EUL_180),1,"omitnan") mean(abs(g1_180),2,"omitnan")];
-std_180 = [std(abs(EUL_180),"omitnan") std(abs(g1_180),"omitnan")];
-
-% 1 Year. 365.25 Days.
-EUL_365 = movmean(EUL,365.25,1,"omitnan");
-g1_365 = movmean(ADV_1,365.25,2,"omitnan");
-means_365 = [mean(abs(EUL_365),1,"omitnan") mean(abs(g1_365),2,"omitnan")];
-std_365 = [std(abs(EUL_365),"omitnan") mean(std(g1_365),"omitnan")];
-
-% 23 Days.
-EUL_23 = movmean(EUL,23,1,"omitnan");
-g1_23 = movmean(ADV_1,23,2,"omitnan");
-means_23 = [mean(abs(EUL_23),1,"omitnan") mean(abs(g1_23),2,"omitnan")];
-std_23 = [std(abs(EUL_23),"omitnan") std(abs(g1_23),"omitnan")];
-
-% 12 Days.
-EUL_12 = movmean(EUL,12,1,"omitnan");
-g1_12 = movmean(ADV_1,12,2,"omitnan");
-means_12 = [mean(abs(EUL_12),1,"omitnan") mean(abs(g1_12),2,"omitnan")];
-std_12 = [std(abs(EUL_12),"omitnan") std(abs(g1_12),"omitnan")];
+LEN = 9101;
+SE = stds./sqrt(LEN);
 
 % 2 Days
 EUL_2 = movmean(EUL,2,1,"omitnan");
-g1_2 = movmean(ADV_1,2,2,"omitnan");
-means_2 = [mean(abs(EUL_2),1,"omitnan") mean(abs(g1_2),2,"omitnan")];
-std_2 = [std(abs(EUL_2),"omitnan") std(abs(g1_2),"omitnan")];
+ADV_2 = movmean(ADV,2,2,"omitnan");
+LAG_2 = movmean(LAG,2,1,"omitnan");
+means_2 = [mean(abs(EUL_2),1,"omitnan") mean(abs(ADV_2),2,"omitnan") mean(abs(LAG_2),1,"omitnan")];
+std_2 = [std(abs(EUL_2),"omitnan") std(abs(ADV_2),"omitnan")];
 
+% 12 Days.
+EUL_12 = movmean(EUL,12,1,"omitnan");
+ADV_12 = movmean(ADV,12,2,"omitnan");
+LAG_12 = movmean(LAG,12,1,"omitnan");
+means_12 = [mean(abs(EUL_12),1,"omitnan") mean(abs(ADV_12),2,"omitnan") mean(abs(LAG_12),1,"omitnan")];
+std_12 = [std(abs(EUL_12),"omitnan") std(abs(ADV_12),"omitnan")];
+
+% 23 Days.
+EUL_23 = movmean(EUL,23,1,"omitnan");
+ADV_23 = movmean(ADV,23,2,"omitnan");
+means_23 = [mean(abs(EUL_23),1,"omitnan") mean(abs(ADV_23),2,"omitnan")];
+std_23 = [std(abs(EUL_23),"omitnan") std(abs(ADV_23),"omitnan")];
+
+% 1/3 Year. 120 Days.
+EUL_120 = movmean(EUL,120,1,"omitnan");
+ADV_120 = movmean(ADV,120,2,"omitnan");
+% figure
+% plot(time(A+1:B),EUL); hold on
+% plot(time(A+1:B),DCDt_120); hold off
+means_120 = [mean(abs(EUL_120),1,"omitnan") mean(abs(ADV_120),2,"omitnan")];
+std_120 = [std(abs(EUL_120),"omitnan") std(abs(ADV_120),"omitnan")];
+
+% 1/2 Year. 180 Days.
+EUL_180 = movmean(EUL,180,1,"omitnan");
+ADV_180 = movmean(ADV,180,2,"omitnan");
+means_180 = [mean(abs(EUL_180),1,"omitnan") mean(abs(ADV_180),2,"omitnan")];
+std_180 = [std(abs(EUL_180),"omitnan") std(abs(ADV_180),"omitnan")];
+
+% 1 Year. 365.25 Days.
+EUL_365 = movmean(EUL,365.25,1,"omitnan");
+ADV_365 = movmean(ADV,365.25,2,"omitnan");
+means_365 = [mean(abs(EUL_365),1,"omitnan") mean(abs(ADV_365),2,"omitnan")];
+std_365 = [std(abs(EUL_365),"omitnan") mean(std(ADV_365),"omitnan")];
 
 % TEST the distribution of 'advCon' in three steps...
 % 1. Distribution.
@@ -466,8 +542,8 @@ std_2 = [std(abs(EUL_2),"omitnan") std(abs(g1_2),"omitnan")];
 edges = -3e-7:2.5e-8:3e-7;
 
 fig = figure; subplot(3,1,1);
-if histfitOrGram == true, histfit(ADV_1,100,"normal"); legend("Data","Normal");
-else, histogram(ADV_1,BinEdges=edges); legend("Data",Location="northwest"); end
+if histfitOrGram == true, histfit(ADV,100,"normal"); legend("Data","Normal");
+else, histogram(ADV,BinEdges=edges); legend("Data",Location="northwest"); end
 title("Advected Concentration","Fontsize",10,Interpreter="latex");
 %xlabel("Concentration (mg m$^{-3}$ s$^{-1}$)",Interpreter="latex");
 xlim([-5e-7 5e-7]); ylim([0 3000]); xticklabels({});
@@ -478,28 +554,28 @@ title("Eulerian/Local Concentration Change (dc/dt)","Fontsize",10,Interpreter="l
 %xlabel("Concentration (mg m$^{-3}$ s$^{-1}$)",Interpreter="latex");
 xlim([-5e-7 5e-7]); ylim([0 3000]); xticklabels({});
 subplot(3,1,3); 
-if histfitOrGram == true, histfit(TD,100,"normal"); else,...
-        histogram(TD,BinEdges=edges); end
+if histfitOrGram == true, histfit(LAG,100,"normal"); else,...
+        histogram(LAG,BinEdges=edges); end
 title("Total Concentration Change (Dc/Dt)","Fontsize",10,Interpreter="latex");
 xlabel("Concentration (mg m$^{-3}$ s$^{-1}$)","Fontsize",8,Interpreter="latex");
 xlim([-5e-7 5e-7]); ylim([0 3000]);
 % ...
 % 2. A-D Test.
-[h_adv,p_adv] = adtest(ADV_1,"Distribution","norm");
+[h_adv,p_adv] = adtest(ADV,"Distribution","norm");
 if h_adv == 1, advN = "Not normal (p = "+num2str(p_adv)+")"; end
-[h_dc,p_dc] = adtest(TD,Distribution="norm");
+[h_dc,p_dc] = adtest(LAG,Distribution="norm");
 if h_adv == 1, dcN = "Not normal (p = "+num2str(p_adv)+")"; end
 [h_Dc,p_Dc] = adtest(EUL,Distribution="norm");
 if h_adv == 1, DcN = "Not normal (p = "+num2str(p_adv)+")"; end
 % 3. Skewness-Kurtosis.
-sk = [skewness(ADV_1) skewness(EUL) skewness(TD)];
-ku = [kurtosis(ADV_1) kurtosis(EUL) kurtosis(TD)];
+sk = [skewness(ADV) skewness(EUL) skewness(LAG)];
+ku = [kurtosis(ADV) kurtosis(EUL) kurtosis(LAG)];
 % ...
 % Plot above results to same figure.
 n(1,:) = {"Mean = "+means(1),"STD = "+stds(1)," Kurtosis = "+num2str(ku(1)), "Skewness = "+num2str(sk(1)), advN};
 n(2,:) = {"Mean = "+means(2),"STD = "+stds(2),"Kurtosis = "+num2str(ku(2)), "Skewness = "+num2str(sk(2)), DcN};
 n(3,:) = {"Mean = "+means(3),"STD = "+stds(3),"Kurtosis = "+num2str(ku(3)), "Skewness = "+num2str(sk(3)), dcN};
-annotation('textbox',[.65 .77 .25 .16],'String',n(1,:),'FontSize',7); 
+annotation('textbox',[.65 .70 .25 .16],'String',n(1,:),'FontSize',7); 
 annotation('textbox',[.65 .43 .25 .16],'String',n(2,:),'FontSize',7);
 annotation('textbox',[.65 .12 .25 .16],'String',n(3,:),'FontSize',7);
 hold off
@@ -544,9 +620,22 @@ scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
 scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
 hold off;
 xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
-ylim([0 40]); xlim([-0.5 2]);
+ylim([1 15]); xlim([-0.1 1.4]);
 legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
 
+% CHL.
+figure;
+scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
+hold on
+plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+scatter(skewness(CHL_study),kurtosis(CHL_study),"filled",DisplayName="CHL");
+% scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
+% scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
+hold off;
+xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
+ylim([1 15]); xlim([-0.1 1.4]);
+legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
 
 
 
@@ -661,165 +750,178 @@ if showFft == true
 end
 
 %% Integrate terms.
-
-% Time. [Units = s]
-X = (1:1:9100)*86400;
-X2 = (0:1:9100)*86400;
-
-% Window length. [Units = s]
-Window(1) = X(end)-X(1);
-Window(2) = X2(end)-X2(1);
-
-% Eulerian. [Units = mg.m-3.s-1]
-tmpE = EUL;
-tmpE(isnan(EUL)) = 0;
-
-% Advective Change in Concentration [Units of mg.m-3.s-1].
-tmpA = ADV_1;
-tmpA(isnan(ADV_1)) = 0;
-
-% Total derivative. [Units of mg.m-3.s-1].
-tmpTD = TD;
-tmpTD(isnan(TD)) = 0;
-
-tmpCHL = CHL_study; tmpCHL(isnan(CHL_study)) = 0;
-
-% Calculate integral of Eulerian term, Advective term, and Total Derivative
-% between X_end and X_0.
-
-% (this should equal CHL_ALOHA). Mean CHL_ALOHA is O(-2). Integral of 
-% CHL_ALOHA is also O(-2). Integral of Eulerian is O(-11).
-E_INT = trapz(X,abs(tmpE)); %/Window(1); 
-tmp1 = cumsum(abs(tmpE),1,"omitnan");
-E_INT2 = tmp1(9100)*86400;
-
-CHL_INT = trapz(X2,tmpCHL)/Window(2);
-
-A_INT = trapz(X2,abs(tmpA)); %/Window(2);
-% tmp2 = cumsum(abs(ADV_1),2,"omitnan");
-tmp2 = 86400*cumsum(ADV_1,2,"omitnan");
-A_INT2 = tmp2(9101);
-
-TD_INT = trapz(X,abs(tmpTD)); %/Window(1);
-tmp3 = cumsum(abs(tmpTD),1,"omitnan");
-TD_INT2 = tmp3(9100) * 86400;
-
-ADV_timeseries = tmp2 + abs(min(tmp2));
-
-figure;
-subplot(1,4,[1 2])
-plot(t(A:B),ADV_timeseries);
-ylabel("Concentration (mg m^{-3})");
-xlabel("Time"); title("Constructed Time Series");
-subplot(1,4,3)
-histogram(ADV_timeseries); xlabel("Concentration"); ylabel("No. of Counts");
-title("Histogram");
-
-subplot(1,4,4)
-% Skewness-Kurtosis Plot.
-sigTh = linspace(0,1,1000);
-for i = 1:length(sigTh)
-    skLogn(i) = (exp(sigTh(i)^2) + 2)*(sqrt(exp(sigTh(i)^2) - 1));
-    kuLogn(i) = exp(4*sigTh(i)^2) + 2*exp(3*sigTh(i)^2) + 3*exp(2*sigTh(i)^2) - 3;
-end
-skLognN = -skLogn;
-kuLognN = kuLogn;
-scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
-hold on
-plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
-plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
-scatter(skewness(ADV_timeseries),kurtosis(ADV_timeseries),"filled",DisplayName="Advected Concentration");
-% scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
-% scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
-hold off;
-xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
-ylim([2 10]); xlim([-0.5 1.5]);
-legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
-sgtitle("Advected Concentration");
-
-
-
-% Actual time series.
-figure; subplot(1,4,[1 2]);
-plot(time(A:B),CHL_study); ylabel("CHL [mg m$^{-3}$]","FontSize",12,Interpreter="latex");
-title("Surface CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
-subplot(1,4,3)
-histogram(CHL_study); xlabel("CHL (mg m^{-3})"); ylabel("No. of Counts");
-subplot(1,4,4)
-% Skewness-Kurtosis Plot.
-kuLognN = kuLogn;
-scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
-hold on
-plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
-plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
-scatter(skewness(CHL_study),kurtosis(CHL_study),"filled",DisplayName="Eulerian Concentration");
-% scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
-% scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
-hold off;
-xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
-ylim([2 15]); xlim([-0.5 2]);
-legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
-sgtitle("Eulerian Concentration");
-
-
-% Lagrangian estimate.
-LAG = CHL_study + ADV_timeseries';
-figure;
-subplot(1,4,[1 2]);
-plot(time(A:B),LAG); ylabel("CHL [mg m$^{-3}$]","FontSize",12,Interpreter="latex");
-title("Lagrangian CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
-subplot(1,4,3)
-histogram(LAG); xlabel("CHL (mg m^{-3})"); ylabel("No. of Counts");
-subplot(1,4,4)
-% Skewness-Kurtosis Plot.
-kuLognN = kuLogn;
-scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
-hold on
-plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
-plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
-scatter(skewness(LAG),kurtosis(LAG),"filled",DisplayName="Lagrangian Concentration");
-% scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
-% scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
-hold off;
-xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
-ylim([2 15]); xlim([-0.5 2]);
-legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
-sgtitle("Lagrangian Concentration");
-
-figure;
-subplot(1,4,[1 2]);
-plot(time(A:B),ADV_timeseries); hold on
-plot(time(A:B),CHL_study); 
-plot(time(A:B),LAG); hold off
-ylabel("CHL (mg m$^{-3}$)","FontSize",12,Interpreter="latex");
-title("CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
-subplot(1,4,4)
-% Skewness-Kurtosis Plot.
-kuLognN = kuLogn;
-scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
-hold on
-plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
-plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
-scatter(skewness(ADV_timeseries),kurtosis(ADV_timeseries),"filled",DisplayName="Advected");
-scatter(skewness(CHL_study),kurtosis(CHL_study),"filled",DisplayName="Eulerian");
-scatter(skewness(LAG),kurtosis(LAG),"filled",DisplayName="Lagrangian");
-hold off;
-xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
-ylim([2 15]); xlim([-0.2 2.5]);
-legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
-sgtitle("Components of Concentration");
-
+    % Time. [Units = s]
+    X = (1:1:9101)*86400;
+    X2 = (1:1:9101)*86400;
+    
+    % Window length. [Units = s]
+    Window(1) = X(end)-X(1);
+    Window(2) = X2(end)-X2(1);
+    
+    % Eulerian. [Units = mg.m-3.s-1]
+    tmpE = EUL;
+    tmpE(isnan(EUL)) = 0;
+    
+    % Advective Change in Concentration [Units of mg.m-3.s-1].
+    tmpA = ADV;
+    tmpA(isnan(ADV)) = 0;
+    
+    % Total derivative. [Units of mg.m-3.s-1].
+    tmpTD = LAG;
+    tmpTD(isnan(LAG)) = 0;
+    
+    tmpCHL = CHL_study; tmpCHL(isnan(CHL_study)) = 0;
+    
+    % Calculate integral of Eulerian term, Advective term, and Total Derivative
+    % between X_end and X_0.
+    
+    % (this should equal CHL_ALOHA). Mean CHL_ALOHA is O(-2). Integral of 
+    % CHL_ALOHA is also O(-2). Integral of Eulerian is O(-11).
+    E_INT = trapz(X,abs(tmpE)); %/Window(1); 
+    tmp1 = cumsum(abs(tmpE),1,"omitnan");
+    E_INT2 = tmp1(9100)*86400;
+    
+    CHL_INT = trapz(X2,tmpCHL)/Window(2);
+    
+    A_INT = trapz(X2,abs(tmpA)); %/Window(2);
+    % tmp2 = cumsum(abs(ADV_1),2,"omitnan");
+    tmp2 = 86400*cumsum(ADV,2,"omitnan");
+    A_INT2 = tmp2(9101);
+    
+    TD_INT = trapz(X,abs(tmpTD)); %/Window(1);
+    tmp3 = cumsum(abs(tmpTD),1,"omitnan");
+    TD_INT2 = tmp3(9100) * 86400;
+    
+    ADV_timeseries = tmp2 + abs(min(tmp2));
+    
+    figure;
+    subplot(1,4,[1 2])
+    plot(t(A:B),ADV_timeseries);
+    ylabel("Concentration (mg m^{-3})");
+    xlabel("Time"); title("Constructed Time Series");
+    subplot(1,4,3)
+    histogram(ADV_timeseries); xlabel("Concentration"); ylabel("No. of Counts");
+    title("Histogram");
+    
+    subplot(1,4,4)
+    % Skewness-Kurtosis Plot.
+    sigTh = linspace(0,1,1000);
+    for i = 1:length(sigTh)
+        skLogn(i) = (exp(sigTh(i)^2) + 2)*(sqrt(exp(sigTh(i)^2) - 1));
+        kuLogn(i) = exp(4*sigTh(i)^2) + 2*exp(3*sigTh(i)^2) + 3*exp(2*sigTh(i)^2) - 3;
+    end
+    skLognN = -skLogn;
+    kuLognN = kuLogn;
+    scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
+    hold on
+    plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+    plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+    scatter(skewness(ADV_timeseries),kurtosis(ADV_timeseries),"filled",DisplayName="Advected Concentration");
+    % scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
+    % scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
+    hold off;
+    xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
+    ylim([2 10]); xlim([-0.5 1.5]);
+    legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
+    sgtitle("Advected Concentration");
+    
+    
+    
+    % Actual time series.
+    figure; subplot(1,4,[1 2]);
+    plot(time(A:B),CHL_study); ylabel("CHL [mg m$^{-3}$]","FontSize",12,Interpreter="latex");
+    title("Surface CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
+    subplot(1,4,3)
+    histogram(CHL_study); xlabel("CHL (mg m^{-3})"); ylabel("No. of Counts");
+    subplot(1,4,4)
+    % Skewness-Kurtosis Plot.
+    kuLognN = kuLogn;
+    scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
+    hold on
+    plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+    plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+    scatter(skewness(CHL_study),kurtosis(CHL_study),"filled",DisplayName="Eulerian Concentration");
+    % scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
+    % scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
+    hold off;
+    xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
+    ylim([2 15]); xlim([-0.5 2]);
+    legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
+    sgtitle("Eulerian Concentration");
+    
+    
+    % Lagrangian estimate.
+    LAG2 = CHL_study + ADV_timeseries';
+    figure;
+    subplot(1,4,[1 2]);
+    plot(time(A:B),LAG2); ylabel("CHL [mg m$^{-3}$]","FontSize",12,Interpreter="latex");
+    title("Lagrangian CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
+    subplot(1,4,3)
+    histogram(LAG2); xlabel("CHL (mg m^{-3})"); ylabel("No. of Counts");
+    subplot(1,4,4)
+    % Skewness-Kurtosis Plot.
+    kuLognN = kuLogn;
+    scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
+    hold on
+    plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+    plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+    scatter(skewness(LAG2),kurtosis(LAG2),"filled",DisplayName="Lagrangian Concentration");
+    % scatter(sk(2),ku(2),"filled",DisplayName="Local Change");
+    % scatter(sk(3),ku(3),"filled",DisplayName="Total Change");
+    hold off;
+    xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
+    ylim([2 15]); xlim([-0.5 2]);
+    legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
+    sgtitle("Lagrangian Concentration");
+    
+    figure;
+    subplot(1,4,[1 2]);
+    plot(time(A:B),ADV_timeseries); hold on
+    plot(time(A:B),CHL_study); 
+    plot(time(A:B),LAG2); hold off
+    ylabel("CHL (mg m$^{-3}$)","FontSize",12,Interpreter="latex");
+    title("CHL at Stn ALOHA","FontSize",12,Interpreter="latex");
+    subplot(1,4,4)
+    % Skewness-Kurtosis Plot.
+    kuLognN = kuLogn;
+    scatter(0,3,72,[0 0 0],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
+    hold on
+    plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+    plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+    scatter(skewness(ADV_timeseries),kurtosis(ADV_timeseries),"filled",DisplayName="Advected");
+    scatter(skewness(CHL_study),kurtosis(CHL_study),"filled",DisplayName="Eulerian");
+    scatter(skewness(LAG2),kurtosis(LAG2),"filled",DisplayName="Lagrangian");
+    hold off;
+    xlabel("Skewness",Interpreter="latex"); ylabel("Kurtosis",Interpreter="latex"); 
+    ylim([2 15]); xlim([-0.2 2.5]);
+    legend(); title("Skewness vs. Kurtosis",Interpreter="latex");
+    sgtitle("Components of Concentration");
 
 %% Correlate CHL and derivative.
 
-TDf = fillmissing(TD,"nearest");
+TDf = fillmissing(LAG2,"nearest");
 % TDf2 = TDf(2:end)
 tmpA = corr(TDf,Ef);
 
-tmpB = corr(CHLf(2:end),Ef);
-tmpC = corr(CHLf,Af');
-tmpD = corr(CHLf(2:end),TDf);
+tmpB = corr(CHLf,Ef);
+tmpC = corr(abs(CHLf),abs(Af'));
+tmpD = corr(abs(CHLf),abs(TDf));
 
 %% Clear unnecessary variables
 clear advN applyCorrelations compareCaseEsts compareTermsInG3 dcN DcN ...
     fourTermComp i input3 make_it_tight readOscar regio showFft;
+
+%% Cross Size Sensitivity Analysis.
+
+dx = [4266 12820 21370 29900 38450 47010 55540 64090 72640 85450];
+dy = [4626 13900 23170 32420 41700 50970 60220 69500 78770 88020];
+A = dx.*dy;
+
+% Ratio of Advection to Lagrangian (%)
+adLa = (1/100) * [56.9 43.6 36.5 33.4 30.2 28.0 26.3 24.4 22.9 21.4];
+
+figure; plot(dx./1000,adLa,"o-"); xlabel("\Delta x (km)"); ylabel("Advection:Lagrangian Ratio");
+title("Advection vs. Lagrangian");
+
+figure;plot(A./1e6,adLa,"o-"); xlabel("Box Size (km^2)"); ylabel("Advection:Lagrangian Ratio");
+title("Advection vs. Lagrangian");
