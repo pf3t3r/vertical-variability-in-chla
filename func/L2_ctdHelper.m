@@ -49,7 +49,7 @@ end
 n = length(pIn);        % Depth range
 nT = length(X(1,:));    % Time range
 alphaHy = 0.005;        % Alpha for K-S/A-D p-value
-alphaLlr = 0.1;         % Alpha for Vuong LLR p-value
+alphaLlr = 0.005;         % Alpha for Vuong LLR p-value
 
 % Extract data beneath the mixed layer.
 pSubml = nan(n,nT);

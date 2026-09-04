@@ -18,7 +18,7 @@ function [ax,X_out,pSubml,bA,ks,obs,sk,ku,rV,p,pV,ad,tr,vuongRes,cSubml,pB] = L2
 % Ku = kurtosis at the same depths.
 
 logAxis = true; % true => output p-values in log x-axis, otherwise no log plot.
-showLegends  = true;
+showLegends  = false;
 
 % 1. Assign default parameter values.
 % Default threshold of 50 based on Mishra et al (2019), Ghasemi & Zahediasl 
@@ -241,6 +241,11 @@ obs = nan(1,length(tr));
 
 %sk = nan(1,length(tr));
 
+% IN.X = X_out; IN.pB = pB; IN.N = length(tr); IN.threshold = threshold; IN.hypTest = 'ad'; IN.useVuong = true;
+% OUT = calculateStatistics(IN);
+% 
+% ks = OUT.ks; ad = OUT.ad; tr = OUT.pXX; pB = OUT.pB; obs = OUT.obs; rV = OUT.rV; pV = OUT.pV;
+
 for i = 1:length(tr)
     tmp = X_out(pB==tr(i));
     tmp(tmp<=0) = nan;
@@ -316,7 +321,7 @@ else
     n = length(tr);
     
     alphaHy = 0.005;
-    alphaLlr = 0.1;
+    alphaLlr = 0.005;
     
     vuongRes2 = nan(length(vuongRes),1);
     if b > length(vuongRes)

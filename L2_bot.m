@@ -52,22 +52,23 @@ end
 %% Principal Analysis.
 if principleAnalysisAd == true
     % A-D
-    tmpX = ": L2";
+    tmpX = "L2";
     
     % Chlorophyll a (88-21)
     tmp = importdata("data/hot_chla.txt");
     L2_helper(tmp,mld,dcm,30,testSel,"ad",[-60 60],[7 19]);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$a$: "+tmpX,"Interpreter","latex");
        
     % HPLC Chlorophyll b (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L2_helper(tmp,mld,dcm,50,testSel,"ad",[-60 60],[7 19]);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle(""+tmpX,"Interpreter","latex");
         
+    tmpX = "L2";
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L2_helper(tmp,mld,dcm,50,testSel,"ad",[-80 80],[6 22]);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
    
 end
 
@@ -78,90 +79,93 @@ if seasonalAnalysisAd == true
     set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 10 15]);
 
     %%% WINTER
-    tmpX = ": L2 Winter";
+    tmpX = "L2 Winter";
 
     % Chlorophyll a (88-21)
     tmp = importdata("data/hot_chla.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[4 14],1);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    sgtitle(""+tmpX,"Interpreter","latex");
     clear tmp;
 
     % HPLC Chlorophyll b (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[3 15],1);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpX,"Interpreter","latex");
     clear tmp;
 
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[1 13],1);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
     clear tmp;
     
 
     %%% SPRING
-    tmpX = ": L2 Spring";
+    tmpX = "L2 Spring";
 
     % chla
     tmp = importdata("data/hot_chla.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[7 17],2);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    yticklabels({}); ylabel({});
+    sgtitle(""+tmpX,"Interpreter","latex");
     clear tmp;
 
     % HPLC Chlorophyll b (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[6 18],2);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpX,"Interpreter","latex");
     clear tmp;
    
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[8 20],2);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
     clear tmp;
     
 
     %%% SUMMER
-    tmpX = ": L2 Summer";
+    tmpX = "L2 Summer";
 
     % chla
     tmp = importdata("data/hot_chla.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[6 16],3);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    sgtitle(""+tmpX,"Interpreter","latex");
+    yticklabels({}); ylabel({});
     clear tmp;
     
     % HPLC Chlorophyll b (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[5 17],3);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpX,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-60 60],[5 17],3);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
     clear tmp;
     
 
     %%% AUTUMN
-    tmpX = ": L2 Autumn";
+    tmpX = "L2 Autumn";
     
     % chla
     tmp = importdata("data/hot_chla.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[3 13],4);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    sgtitle(""+tmpX,"Interpreter","latex");
+    yticklabels({}); ylabel({});
     clear tmp;
     
     % HPLC Chlorophyll b (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[3 13],4);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpX,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L2_helper(tmp,mld,dcm,thresh,testSel,"ad",[-50 50],[5 15],4);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
     clear tmp;
     
 end

@@ -22,6 +22,11 @@ else
     lp = "";
 end
 
+saveFigs = true;
+if saveFigs == true
+    figLoc = "output/fig/L0/";
+end
+
 %% Chl-a depth and time-series.
 % Import Chl-a data and transform the data.
 % Plot the depth and time-series of chla across the upper 200 dbar (approx
@@ -202,20 +207,23 @@ if principle == true
     % chla
     tmpX ="";
     tmp = importdata('data/hot_chla.txt');
-    L0_helper(tmp,thresh,'ad');
+    [ax,ks,obs,pB,X,ad] = L0_helper(tmp,thresh,'ad');
     if showL0title == true
         sgtitle("L0"+tmpX,"Interpreter","latex");
     end
+    if saveFigs == true, exportgraphics(ax,figLoc+"chla.png"); end
 
     % chlb
-    tmp = importdata('data/hot_chlb.txt');
-    L0_helper(tmp,thresh,'ad');
+    tmp2 = importdata('data/hot_chlb.txt');
+    [ax2,~,~,~,~,~] = L0_helper(tmp2,thresh,'ad');
     sgtitle("L0: Chl $b$","Interpreter","latex");
+    if saveFigs == true, exportgraphics(ax2,figLoc+"chlb.png"); end
    
     % pc
-    tmp = importdata('data/hot_pc.txt');
-    L0_helper(tmp,thresh,'ad');
+    tmp3 = importdata('data/hot_pc.txt');
+    [ax3,~,~,~,~,~] = L0_helper(tmp3,thresh,'ad');
     sgtitle("L0: Particulate Carbon","Interpreter","latex");
+    if saveFigs == true, exportgraphics(ax3,figLoc+"pc.png"); end
  
 end
 %% A-D Test: Seasonal.

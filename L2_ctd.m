@@ -103,32 +103,32 @@ sigma0 = gsw_sigma0(SA,CT);
 %% Principal Analysis
 if principalAnalysisAd == true
     
-    tmpX = ": L2";
+    tmpX = "L2";
 
     % Chlorophyll a (88-21)
     chla = load("data\hot_fluo_L1_L2").meanLiN(1:lowerP,131:329);
     L2_ctdHelper(chla,pIn,maxMld,dcm,dists,"ad",[-60 60]);
-    sgtitle('chl-$a$'+tmpX,"Interpreter","latex");
+    sgtitle('chl-$a$: '+tmpX,"Interpreter","latex");
 
     % Conservative Temperature (88-21)
     L2_ctdHelper(CT,pIn,maxMld,dcm,dists,"ad",[-60 60],thresh,true,true);
-    sgtitle('$\Theta$'+tmpX,"Interpreter","latex");
+    sgtitle(''+tmpX,"Interpreter","latex");
     
     % Absolute Salinity (88-21)
     L2_ctdHelper(SA,pIn,maxMld,dcm,dists,"ad",[-60 60],thresh,true,true);
-    sgtitle('$S_A$'+tmpX,"Interpreter","latex");
+    sgtitle('$S_A$: '+tmpX,"Interpreter","latex");
 
     % Potential Density (88-21)
     L2_ctdHelper(sigma0,pIn,maxMld,dcm,dists,"ad",[-60 60],thresh,true,true);
-    sgtitle('$\sigma_0$'+tmpX,"Interpreter","latex");
+    sgtitle('$\sigma_0$: '+tmpX,"Interpreter","latex");
     
     % Stratification (N^2)
     L2_ctdHelper(N2,p_mid(:,1),maxMld,dcm,dists,"ad",[-60 60],thresh,true,true);
-    sgtitle('$N^2$'+tmpX,"Interpreter","latex");
+    sgtitle('$N^2$: '+tmpX,"Interpreter","latex");
     
     % O2 (88-21)
     L2_ctdHelper(o2,pIn,maxMld,dcm,dists,"ad",[-60 60]);
-    sgtitle('$O_2$'+tmpX,"Interpreter","latex");
+    sgtitle('$O_2$: '+tmpX,"Interpreter","latex");
     
 end
 

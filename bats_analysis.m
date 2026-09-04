@@ -10,26 +10,38 @@
 % (Vuong Log-Likelihood Ratio test, V-LLR) to determine which of the two is
 % best.
 
-clear;clc;close all; format longG;
+%% Setup.
+clear;clc;close all; format longG; addpath("func\");
 
 % Options and Test Cases.
 threshold = 30;
-showTimeSeries = true;
+showTimeSeries = false;
 showL0 = true;
-showL1 = true;
-showL2 = true;
+showL1 = false;
+showL2 = false;
 showOtherTests = false;     % Evaluate data with Lilliefors and chi^2 tests.
                             % (in addition to Anderson-Darling)
-showL0title = true;        % Leave as 'false' for paper figures.
+showL0title = false;        % Leave as 'false' for paper figures.
 showDcmMldComp = false;     % show depth comparison of DCM and MLD
-%% Import DCM file for BATS
-% This was calculated manually on Excel for BATS cruises 1-405.
+
+% CP = 85;                    % Pressure to calculate histogram at. 
+%                             % For L1 should be in range [5, 15, ... 75,
+%                             % 85].
+%                             % For L2, should be in range [-100,
+%                             % -90,...,90,100].
+
+
+% Suppress warnings related to p-value being too low.
+id = 'stats:adtest:OutOfRangePLow';
+warning('off',id); clear id;
+
+%% Load data.
+
+% Load DCM. This was calculated manually on Excel for BATS cruises 1-405.
 A = importdata("data\bats_dcm.txt");
 dcmBats = A.data;
 
-%% Depth- and time-series. (Fig 1a)
-
-% Import Data: ID, Time, Depth, Chl-a.
+% Load ID, Time, Depth, Chl-a.
 D = importdata('data\bats_pigments.txt').data;
 id = D(:,1);                % Bottle ID with format !####$$$@@, where
                             % ! = cruise type (1 = core cruise),
@@ -45,6 +57,11 @@ chla_Turner = D(:,24);      % Chl-a concentration, Turner method (ng/l).
 % Re-assign NaNs.
 chla(chla==-999) = nan;
 chla_Turner(chla_Turner==-999) = nan;
+
+% Removed flagged values. (2 = verified,acceptable; 1 = unverified, -3 =
+% suspect).
+chla(QF<2) = NaN;
+chla_Turner(QF<2) = NaN;
 
 % Set up time vector.
 YY = nan(length(YMD),1); MM = nan(length(YMD),1); DD = nan(length(YMD),1);
@@ -99,7 +116,7 @@ id_nc = [1];
 CRN_no = [1];
 for i = 2:length(CoreCRN)
     if CoreCRN(i) > CoreCRN(i-1)
-        disp(i)
+        %disp(i)
         id_nc = [id_nc i];
         CRN_no = [CRN_no CoreCRN(i)];
     end
@@ -133,6 +150,7 @@ chlagrid(398,1:(length(chla)+1-id_nc(398))) = chla(id_nc(398):length(chla));
 
 tgridDatenum = datenum(tgrid);      % Convert time vector to datenum format (for plotting).
 
+% Show time series and mean profile.
 if showTimeSeries == true
     % Figure 1a. chl-a(p,t).
     figure;
@@ -151,7 +169,7 @@ if showTimeSeries == true
     ax = gca;
     ax.FontSize = 15;
     
-    %% Mean profile of time-series. (Fig. 1b)
+    % Mean profile of time-series. (Fig. 1b)
     
     % Calculate the mean chl-a at each depth bin as well as the 5th and 95th
     % percentile values.
@@ -189,13 +207,13 @@ if showTimeSeries == true
 end
 
 
-%% L0 Analysis.
+%% L0. Statistical diagram.
 if showL0 == true
     
     % HISTOGRAM.
     chla((chla==0)) = nan;
     figure
-    histfit(chla(depth_B==2),10,"lognormal");
+    histfit(chla(depth_B==2),50,"lognormal");
     
     % Calculate the mean depth of the Chlorophyll Maximum (CM) as well as the
     % 5th and 9th percentile interval values.
@@ -207,32 +225,44 @@ if showL0 == true
     % distributed normally or lognormally. The hypothesis test result 'h' will
     % return as h = 1 if the null hypothesis is rejected or h = 0 if there is a
     % failure to reject the null hypothesis.
-    hN = nan(20,1); pN = nan(20,1); hL = nan(20,1); pL = nan(20,1);
-    obs = nan(20,1);
-    for i = 1:20
-        tmp = chla(depth_B==i);
-        if length(tmp) > 30
-            obs(i) = length(tmp);
-            tmp(tmp==0) = nan;
-    
-            [hN(i), pN(i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
-            [hL(i), pL(i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
-    
-            if showOtherTests == true
-                pd0 = fitdist(tmp,'Normal');
-                pd = fitdist(tmp,'Lognormal');
-                [hN2(i), pN2(i)] = chi2gof(tmp,"CDF",pd0);
-                [hN3(i), pN3(i)] = lillietest(tmp,"Distribution","norm");
-                [hx1(i),px1(i)] = chi2gof(tmp,'CDF',pd);
-                [hx2(i),px2(i)] = lillietest(log(tmp),"Distr","norm");
-            end
-        end
-    end
+
+    IN.X = chla; IN.pB = depth_B; IN.N = 20; IN.threshold = threshold; IN.hypTest = 'ad';
+    OUT = calculateStatistics(IN);
+    ks = OUT.ks;
+    ad = OUT.ad;
+    pN = ad(2,:); pL = ad(1,:);
+    pXX = OUT.pXX;
+    pB = OUT.pB;
+    obs = OUT.obs;
+
+%     hN = nan(20,1); pN = nan(20,1); hL = nan(20,1); pL = nan(20,1);
+%     obs = nan(20,1);
+%     for i = 1:20
+%         tmp = chla(depth_B==i);
+%         if length(tmp) > 30
+%             obs(i) = length(tmp);
+%             tmp(tmp==0) = nan;
+%     
+%             [hN(i), pN(i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
+%             [hL(i), pL(i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
+%     
+%             if showOtherTests == true
+%                 pd0 = fitdist(tmp,'Normal');
+%                 pd = fitdist(tmp,'Lognormal');
+%                 [hN2(i), pN2(i)] = chi2gof(tmp,"CDF",pd0);
+%                 [hN3(i), pN3(i)] = lillietest(tmp,"Distribution","norm");
+%                 [hx1(i),px1(i)] = chi2gof(tmp,'CDF',pd);
+%                 [hx2(i),px2(i)] = lillietest(log(tmp),"Distr","norm");
+%             end
+%         end
+%     end
     
     % Plot Figure 2. chl-a. Is the data normal or lognormal?
     figure;
     if showL0title == true
-        sgtitle("chl-a (L0): " + "BATS "+num2str(YMD(1))+" - " + num2str(YMD(end))+"");
+        sgtitle("chl-a (L0): " + "BATS "+num2str(YMD(1))+" - " + num2str(YMD(end)));
+    else
+        sgtitle("L0");
     end
     subplot(1,3,[1 2])
     yyaxis left
@@ -240,15 +270,15 @@ if showL0 == true
     hold on
     semilogx(pL,0.5:1:19.5,'o-','Color','#4d9221','DisplayName','Lognormal (A-D)','LineWidth',1.5,'MarkerSize',5);
     if showOtherTests == true
-        semilogx(pN2,1:1:20,'o-','Color','#c51b7d','DisplayName','Normal (chi^2)','LineWidth',1.5,'MarkerSize',5);
+        semilogx(pN2,1:1:20,'o:','Color','#c51b7d','DisplayName','Normal (chi^2)','LineWidth',1.5,'MarkerSize',5);
         semilogx(pN3,1:1:20,'o--','Color','#c51b7d','DisplayName','Normal (Lil.)','LineWidth',1.5,'MarkerSize',5);
-        semilogx(px1,1:1:20,'o-','Color','#4d9221','DisplayName','Lognormal (chi^2)','LineWidth',1.5,'MarkerSize',5);
+        semilogx(px1,1:1:20,'o:','Color','#4d9221','DisplayName','Lognormal (chi^2)','LineWidth',1.5,'MarkerSize',5);
         semilogx(px2,1:1:20,'o--','Color','#4d9221','DisplayName','Lognormal (Lil.)','LineWidth',1.5,'MarkerSize',5);
     end
     set(gca,"YDir","reverse"); legend();
     yticklabels(0:20:200);
     ylim([0 20]);
-    ylabel("Depth (m) (10-m bins)");
+    ylabel("Pressure (dbar)");
     yyaxis right
     yline(meanCM,DisplayName="p_{DCM} \pm 5/95",Interpreter="latex");
     yline(CM_5pct,HandleVisibility="off");
@@ -272,7 +302,7 @@ if showL0 == true
     ylim([0.5 20.5]); yticklabels({});
 end
 
-%% Find Mixed Layer Depth
+%% Find mixed layer depth.
 % Calculate the Mixed Layer Depth (MLD) from hydrographic data. This is
 % needed for separating the L0 analysis into L1 and L2.
 
@@ -329,7 +359,7 @@ end
 t_nc = t(id_nc);    % Time at which new cruise starts.
 
 % Calculate the Mixed Layer Depth per cruise 'MLD_pc'
-mld_pc = 20*ones(405,1);        % Minimum possible MLD = 20 dbar.
+mld_pc = 10*ones(405,1);        % Minimum possible MLD = 20 dbar. (STOP: should this be lower???)
 mld_pc(1) = gsw_mlp(SA(1:24),CT(1:24),p(1:24));
 for i = 2:159
     mld_pc(i) = gsw_mlp(SA(id_nc(i):id_nc(i+1)-1),CT(id_nc(i):id_nc(i+1)-1),p(id_nc(i):id_nc(i+1)-1));
@@ -345,7 +375,15 @@ mld_pc(mld_pc>500) = nan;
 % mld_pc(isnan(mld_pc)) = 20; % reset removed cast as minimum MLD possible
 
 
-%% Compare depths: DCM vs ML
+% Here I am calculating the mixed layer depth from scratch. I need to
+% validate this against the same measurement by the BATS team.
+% TO DO LATER. Focus on functionalising all statistics code first.
+% % Load BATS MLD.
+% D_mldbats = readtable("data\bats_mld_2022-2023.csv");
+% figure;
+% plot(D_mldbats,"Var2","Var9");
+
+%% Compare depths of DCM and ML.
 % Compare the depth of the DCM and the ML for each cruise. We are
 % interested in those cruises where the DCM is deeper than the ML.
 
@@ -446,47 +484,86 @@ meanCM = mean(dcmsBelow(:,2),"omitnan");
 CM_5pct = prctile(dcmsBelow(:,2),5);
 CM_95pct = prctile(dcmsBelow(:,2),95);
 
-
 % Use the Anderson-Darling (A-D) test to evaluate whether the data is
 % distributed normally or lognormally. The hypothesis test result 'h' will
 % return as h = 1 if the null hypothesis is rejected or h = 0 if there is a
 % failure to reject the null hypothesis.
-hN = nan(20,1); pN = nan(20,1); hL = nan(20,1); pL = nan(20,1);
-obs = nan(20,1);
-for i = 1:20
-    tmp = chla_lowDCM(dep_lowDCM==i);
-    if length(tmp) > 30
-        obs(i) = length(tmp);
-        tmp(tmp==0) = nan;
 
-        [hN(i), pN(i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
-        [hL(i), pL(i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
 
-        if showOtherTests == true
-            pd0 = fitdist(tmp,'Normal');
-            pd = fitdist(tmp,'Lognormal');
-            [hN2(i), pN2(i)] = chi2gof(tmp,"CDF",pd0);
-            [hN3(i), pN3(i)] = lillietest(tmp,"Distribution","norm");
-            [hx1(i),px1(i)] = chi2gof(tmp,'CDF',pd);
-            [hx2(i),px2(i)] = lillietest(log(tmp),"Distr","norm");
-        end
+
+IN_LOW.X = chla_lowDCM; IN_LOW.pB = dep_lowDCM; IN_LOW.N = 20;
+    OUT_LOW = calculateStatistics(IN_LOW);
+    ks = OUT_LOW.ks;
+    ad = OUT_LOW.ad;
+    pNN = ad(2,:); pLL = ad(1,:);
+    pXX = OUT_LOW.pXX;
+    pB = OUT_LOW.pB;
+    obs = OUT_LOW.obs;
+    pV = OUT_LOW.pV;
+    rV = OUT_LOW.rV;
+
+% 
+% hN = nan(20,1); pN = nan(20,1); hL = nan(20,1); pL = nan(20,1);
+% obs = nan(20,1);
+% for i = 1:20
+%     tmp = chla_lowDCM(dep_lowDCM==i);
+%     if length(tmp) > 30
+%         obs(i) = length(tmp);
+%         tmp(tmp==0) = nan;
+% 
+%         [hN(i), pNN(i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
+%         [hL(i), pLL(i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
+% 
+%         [rV(:,i),pV(:,i)] = bbvuong(tmp);
+%         if showOtherTests == true
+%             pd0 = fitdist(tmp,'Normal');
+%             pd = fitdist(tmp,'Lognormal');
+%             [hN2(i), pN2(i)] = chi2gof(tmp,"CDF",pd0);
+%             [hN3(i), pN3(i)] = lillietest(tmp,"Distribution","norm");
+%             [hx1(i),px1(i)] = chi2gof(tmp,'CDF',pd);
+%             [hx2(i),px2(i)] = lillietest(log(tmp),"Distr","norm");
+%         end
+%     end
+% end
+% 
+% 
+vuongRes = nan(1,length(OUT_LOW.obs));
+for i = 1:length(obs)
+    if rV(1,i) > 0
+        vuongRes(i) = 1;
+    elseif rV(1,i) < 0
+        vuongRes(i) = 2;
     end
 end
-%% L0 Analysis.
+
+%% L0. Statistical diagram. DCM < MLD.
 if showL0 == true
     % A-D test: L0. (Fig. 2) [DCM deeper than ML]
     % Figure 2X. chl-a. L0. Is the data normal or lognormal? This time we look
     % at only those cruises where the DCM was beneath the MLD.
     
+    alphaHy = 0.005; alphaLlr = 0.005;
+
     figure;
     if showL0title == true
         sgtitle("chl-a (L0): " + "BATS "+num2str(YMD(1))+" - " + num2str(YMD(end))+"");
     end
     subplot(1,3,[1 2])
     yyaxis left
-    semilogx(pN,0.5:1:19.5,'o-','Color','#c51b7d','DisplayName','Normal (A-D)','LineWidth',1.5,'MarkerSize',5);
+    semilogx(pNN,0.5:1:19.5,'o-','Color','#c51b7d','DisplayName','Normal (A-D)','LineWidth',1.5,'MarkerSize',5);
     hold on
-    semilogx(pL,0.5:1:19.5,'o-','Color','#4d9221','DisplayName','Lognormal (A-D)','LineWidth',1.5,'MarkerSize',5);
+    semilogx(pLL,0.5:1:19.5,'o-','Color','#4d9221','DisplayName','Lognormal (A-D)','LineWidth',1.5,'MarkerSize',5);
+    for i = 1:length(OUT_LOW.obs)
+        if vuongRes(i) == 1 && ad(1,i) > alphaHy & OUT_LOW.pV(1,i) > alphaLlr && ad(2,i) > alphaHy
+            plot(ad(2,i),OUT_LOW.pXX(i),'square','Color','#c51b7d','MarkerSize',15,HandleVisibility='off');
+        elseif vuongRes(i) == 1 && ad(1,i) > alphaHy & OUT_LOW.pV(1,i) < alphaLlr && ad(2,i) > alphaHy
+            plot(ad(2,i),OUT_LOW.pXX(i),'square','Color','#c51b7d','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+        elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & OUT_LOW.pV(1,i) > alphaLlr && ad(1,i) > alphaHy
+            plot(ad(1,i),OUT_LOW.pXX(i),'square','Color','#4d9221','MarkerSize',15,HandleVisibility='off');
+        elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & OUT_LOW.pV(1,i) < alphaLlr && ad(1,i) > alphaHy
+            plot(ad(1,i),OUT_LOW.pXX(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+        end
+    end
     if showOtherTests == true
         semilogx(pN2,1:1:20,'o-','Color','#c51b7d','DisplayName','Normal (chi^2)','LineWidth',1.5,'MarkerSize',5);
         semilogx(pN3,1:1:20,'o--','Color','#c51b7d','DisplayName','Normal (Lil.)','LineWidth',1.5,'MarkerSize',5);
@@ -511,9 +588,9 @@ if showL0 == true
     ax = gca;
     ax.YAxis(1).Color = 'k';
     ax.YAxis(2).Color = 'k';
-    legend('Position',[0.4 0.7 0.07 0.12],FontSize=11);
+    legend('Position',[0.4 0.7 0.07 0.12],FontSize=9);
     grid on
-    sgtitle("L0","Interpreter","latex");
+    sgtitle("L0 (DCM $<$ MLD)","Interpreter","latex");
     
     subplot(1,3,3)
     barh(obs,'FaceColor','#d3d3d3');
@@ -524,7 +601,7 @@ if showL0 == true
 
 end
 
-%% L1 A-D. (Fig. 3a)
+%% L1. Calculate.
 if showL1 == true
 
 % Set whether to analyse total data or...
@@ -562,7 +639,7 @@ tmpC = nan(1,L);
 tmpId = nan(1,L);
 
 for i = 1:L
-    disp(i)
+    %disp(i)
     tmp = mld_pc(cruiseNo(i));
     if pIn(i) < tmp
         tmpP(i) = pIn(i);
@@ -594,81 +671,97 @@ idOut = idOut(~idZero);
 pb10 = discretize(pOut,0:10:200);
 n10 = max(pb10);
 
-%% L1 Histogram.
-
 COut(COut<=0) =nan;
+
+checkedPressure = 65;
 figure;
-histogram(COut(pb10==1));
+histogram(COut(pb10==checkedPressure/10+0.5),10);
+title("L1 (p = "+string(checkedPressure)+" dbar)");
+xlabel("chl-a (ng/kg)"); ylabel("No. of obs.");
+
 
 % histfit variation
 figure
 histfit(COut(pb10==4),10,"lognormal");
 
-%% L1 A-D plot.
-obs = nan(20,1);
-n = n10;
-depth = 5:10:200;
-ad = nan(2,20);
+%% L1. Statistical diagram.
+% obs = nan(20,1);
+% n = n10;
+% depth = 5:10:200;
+% ad = nan(2,20);
+
+
+IN_L1.X = COut; IN_L1.pB = pb10; IN_L1.N = 20; IN_L1.threshold = threshold; IN_L1.hypTest = 'ad';
+IN_L1.useVuong = true; IN_L1.calculateMoments = true;
+    OUT_L1 = calculateStatistics(IN_L1);
+    ks = OUT_L1.ks;
+    ad = OUT_L1.ad;
+    pNN = ad(1,:); pLL = ad(2,:);
+    pXX = OUT_L1.pXX;
+    pB = OUT_L1.pB;
+    obs = OUT_L1.obs;
+    sk = OUT_L1.sk;
+    ku = OUT_L1.ku;
 
 % Apply A-D test to values of chl-a in the mixed layer.
-for i = 1:n
-    X_i = COut(pb10==i); % find concentration X_i at binned pressure i
-    if length(X_i) > 3
-        [~,ad(2,i)] = adtest(X_i,"Distribution","logn","Alpha",0.005);
-        [~,ad(1,i)] = adtest(X_i,"Distribution","norm","Alpha",0.005);
-        [rV(:,i),pV(:,i)] = bbvuong(X_i);
-        sk(i) = skewness(X_i);
-        ku(i) = kurtosis(X_i);
-    end
-    obs(i) = length(X_i);
-    clear X_i;
-end
-
-for i = 1:n
-    if obs(i) < threshold
-        ad(:,i) = nan;
-        sk(i) = nan;
-        ku(i) = nan;
-        rV(:,i) = nan;
-        pV(:,i) = nan;
-    end
-end
-
-tmp = [];
-for i = 1:n
-    if ~isnan(sum(ad(:,i)))
-        tmp = [tmp i];
-    end
-end
-tr = depth(tmp);
-sk = sk(tmp);
-ku = ku(tmp);
-rV = rV(:,tmp);
-pV = pV(:,tmp);
-ad = ad(:,~all(isnan(ad)));
+% for i = 1:n
+%     X_i = COut(pb10==i); % find concentration X_i at binned pressure i
+%     if length(X_i) > 3
+%         [~,ad(2,i)] = adtest(X_i,"Distribution","logn","Alpha",0.005);
+%         [~,ad(1,i)] = adtest(X_i,"Distribution","norm","Alpha",0.005);
+%         [rV(:,i),pV(:,i)] = bbvuong(X_i);
+%         sk(i) = skewness(X_i);
+%         ku(i) = kurtosis(X_i);
+%     end
+%     obs(i) = length(X_i);
+%     clear X_i;
+% end
+% 
+% for i = 1:n
+%     if obs(i) < threshold
+%         ad(:,i) = nan;
+%         sk(i) = nan;
+%         ku(i) = nan;
+%         rV(:,i) = nan;
+%         pV(:,i) = nan;
+%     end
+% end
+% 
+% tmp = [];
+% for i = 1:n
+%     if ~isnan(sum(ad(:,i)))
+%         tmp = [tmp i];
+%     end
+% end
+% tr = depth(tmp);
+% sk = sk(tmp);
+% ku = ku(tmp);
+% rV = rV(:,tmp);
+% pV = pV(:,tmp);
+% ad = ad(:,~all(isnan(ad)));
 
 % Plot results.
 ax = figure;
 
-vuongRes = nan(length(tr));
-for i = 1:length(tr)
-    if rV(1,i) > 0
+vuongRes = nan(length(OUT_L1.obs),1);
+for i = 1:length(OUT_L1.obs)
+    if OUT_L1.rV(1,i) > 0
         %disp('Normal');
         vuongRes(i) = 1;
-    elseif rV(1,i) < 0
+    elseif OUT_L1.rV(1,i) < 0
         %disp('Lognormal');
         vuongRes(i) = 2;
     end
 end
 
-% Lognormal family: generate theoretical skewness and kurtosis
-sigTh = linspace(0,1,1000);
-for i = 1:length(sigTh)
-    skLogn(i) = (exp(sigTh(i)^2) + 2)*(sqrt(exp(sigTh(i)^2) - 1));
-    kuLogn(i) = exp(4*sigTh(i)^2) + 2*exp(3*sigTh(i)^2) + 3*exp(2*sigTh(i)^2) - 3;
-end
-skLognN = -skLogn;
-kuLognN = kuLogn;
+% % Lognormal family: generate theoretical skewness and kurtosis
+% sigTh = linspace(0,1,1000);
+% for i = 1:length(sigTh)
+%     skLogn(i) = (exp(sigTh(i)^2) + 2)*(sqrt(exp(sigTh(i)^2) - 1));
+%     kuLogn(i) = exp(4*sigTh(i)^2) + 2*exp(3*sigTh(i)^2) + 3*exp(2*sigTh(i)^2) - 3;
+% end
+% skLognN = -skLogn;
+% kuLognN = kuLogn;
 
 % Specify expectation value.
 alphaHy = 0.005;
@@ -689,21 +782,21 @@ xlabel('No. of Obs.',Interpreter='latex',FontSize=13);
 subplot(1,3,[1 2])
 xline(alphaHy,'-','\color{black}\alpha=0.005',LineWidth=1.5,Color="#808080",HandleVisibility="off",LabelOrientation="horizontal",LabelHorizontalAlignment="center",FontSize=13);
 hold on
-for i = 1:n
-    if vuongRes(i) == 1 && ad(1,i) > alphaHy & pV(1,i) > alphaLlr && ad(2,i) > alphaHy
-        plot(ad(1,i),tr(i),'square','Color','#c51b7d','MarkerSize',15,HandleVisibility='off');
-    elseif vuongRes(i) == 1 && ad(1,i) > alphaHy & pV(1,i) < alphaLlr && ad(2,i) > alphaHy
-        plot(ad(1,i),tr(i),'square','Color','#c51b7d','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
-    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & pV(1,i) > alphaLlr && ad(1,i) > alphaHy
-        plot(ad(2,i),tr(i),'square','Color','#4d9221','MarkerSize',15,HandleVisibility='off');
-    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & pV(1,i) < alphaLlr && ad(1,i) > alphaHy
-        plot(ad(2,i),tr(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+for i = 1:n10
+    if vuongRes(i) == 1 && ad(1,i) > alphaHy & OUT_L1.pV(1,i) > alphaLlr && ad(2,i) > alphaHy
+        plot(ad(2,i),OUT_L1.pXX(i),'square','Color','#c51b7d','MarkerSize',15,HandleVisibility='off');
+    elseif vuongRes(i) == 1 && ad(1,i) > alphaHy & OUT_L1.pV(1,i) < alphaLlr && ad(2,i) > alphaHy
+        plot(ad(2,i),OUT_L1.pXX(i),'square','Color','#c51b7d','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & OUT_L1.pV(1,i) > alphaLlr && ad(1,i) > alphaHy
+        plot(ad(1,i),OUT_L1.pXX(i),'square','Color','#4d9221','MarkerSize',15,HandleVisibility='off');
+    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & OUT_L1.pV(1,i) < alphaLlr && ad(1,i) > alphaHy
+        plot(ad(1,i),OUT_L1.pXX(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
     end
 end
-plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > 0.1)');        
-plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < 0.1)');        
-plot(ad(1,:),tr,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5);
-plot(ad(2,:),tr,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5);
+plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > '+string(alphaLlr)+'');        
+plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < '+string(alphaLlr)+'');        
+plot(ad(1,:),OUT_L1.pXX,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5);
+plot(ad(2,:),OUT_L1.pXX,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5);
 xlabel('A-D $p$-value',Interpreter='latex',FontSize=13);
 hold off
 set(gca, 'XScale', 'log');
@@ -711,10 +804,10 @@ grid minor;
 xlim([0.1*alphaHy 1]); 
 ylabel('Pressure [dbar]',Interpreter='latex',FontSize=13);
 set(gca,'YDir','reverse');
-legend('Position',[0.4 0.7 0.07 0.12],FontSize=11);
+legend('Position',[0.4 0.7 0.07 0.12],FontSize=9);
 sgtitle("L1","Interpreter","latex");
 
-%% L1 Skewness/Kurtosis. (Fig. 4a)
+%% L1. Skewness-kurtosis.
 
 % Lognormal family: generate theoretical skewness and kurtosis
 sigTh = linspace(0,1,1000);
@@ -752,13 +845,13 @@ scatter(0,3,72,[0.2 0.2 0.2],'DisplayName','Normal',Marker='pentagram',LineWidth
 plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
 plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
 scatter(sk,ku,72,[0.8 0.8 0.8],HandleVisibility="off");
-clr = 1:1:length(tr);
+clr = 1:1:length(OUT_L1.obs);
 scatter(sk,ku,54,clr,"filled","o",HandleVisibility="off");
 colormap(gca,cbrewer2("Greens"));
 cbar = colorbar;
 cbar.Direction = "reverse";
-cbar.Ticks = 1:1:length(tr);
-cbar.TickLabels = tr;
+cbar.Ticks = 1:1:length(OUT_L1.obs);
+cbar.TickLabels = OUT_L1.pXX;
 cbar.Label.String = "P [dbar]";
 cbar.Label.Position = [0.7 1-0.35];
 cbar.Label.Rotation = 0;
@@ -771,7 +864,8 @@ lgd = legend('Location','best');
 title('L1','Interpreter','latex','FontSize',13);
 
 end
-%% L2 A-D. (Fig. 3b)
+
+%% L2. Calculate.
 if showL2 == true
 % Set whether to analyse total data or...
 % only data for cruises where the DCM is beneath the ML 
@@ -870,7 +964,9 @@ end
 
 bottleArray = [bottleArray tPcm];
 
-% THIS is where we convert to Lagrangian pressure coordinates!!!
+% Convert to Lagrangian pressure coordinates <=> zero on the y-axis is the
+% depth of the mean DCM. Negative / positive values are shallower / deeper
+% than the DCM.
 tPLagrangian = nan(length(p),1);
 tPLagrangian = bottleArray(:,2) - bottleArray(:,3);
 bottleArray = [bottleArray tPLagrangian];
@@ -885,69 +981,94 @@ pr = pmin:10:pmax;
 
 C_out = bottleArray(:,6);
 pB = bottleArray(:,5);
-ad = nan(2,length(pr));
-rV = nan(10,length(pr));
-pV = nan(10,length(pr));
-obs = nan(1,length(pr));
+% ad = nan(2,length(pr));
+% rV = nan(10,length(pr));
+% pV = nan(10,length(pr));
+% obs = nan(1,length(pr));
 
-sk = nan(1,length(pr));
-ku = nan(1,length(pr));
+IN_L2.X = C_out; IN_L2.pB = pB; IN_L2.N = length(pr);
+IN_L2.useL2 = true; IN_L2.pr = pr;
+IN_L2.useVuong = true; IN_L2.calculateMoments = true;
+OUT_L2 = calculateStatistics(IN_L2);
+    ks = OUT_L2.ks;
+    ad = OUT_L2.ad;
+    pNN = ad(2,:); pLL = ad(1,:);
+    pXX = OUT_L2.pXX;
+    pB = OUT_L2.pB;
+    obs = OUT_L2.obs;
+    sk = OUT_L2.sk;
+    ku = OUT_L2.ku;
+    rV = OUT_L2.rV;
+    pV = OUT_L2.pV;
 
-for i = 1:length(pr)
-    tmp = C_out(pB==pr(i));
-    tmp(tmp<=0) = nan;
-    tmp(isnan(tmp)) = [];
-    obs(i) = length(tmp);
-    if length(tmp) > 3
-        [~,ad(2,i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
-        [~,ad(1,i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
-        [rV(:,i),pV(:,i)] = bbvuong(tmp);
-        sk(i) = skewness(tmp);
-        ku(i) = kurtosis(tmp);
-    end
-end
-
-for i = 1:length(pr)
-    if obs(i) < threshold
-        ad(:,i) = nan;
-        rV(:,i) = nan;
-        sk(i) = nan;
-        ku(i) = nan;
-    end
-end
+% sk = nan(1,length(pr));
+% ku = nan(1,length(pr));
+% 
+% for i = 1:length(pr)
+%     tmp = C_out(pB==pr(i));
+%     tmp(tmp<=0) = nan;
+%     tmp(isnan(tmp)) = [];
+%     obs(i) = length(tmp);
+%     if length(tmp) > 3
+%         [~,ad(2,i)] = adtest(tmp,"Distribution","logn","Alpha",0.005);
+%         [~,ad(1,i)] = adtest(tmp,"Distribution","norm","Alpha",0.005);
+%         [rV(:,i),pV(:,i)] = bbvuong(tmp);
+%         sk(i) = skewness(tmp);
+%         ku(i) = kurtosis(tmp);
+%     end
+% end
+% 
+% for i = 1:length(pr)
+%     if obs(i) < threshold
+%         ad(:,i) = nan;
+%         rV(:,i) = nan;
+%         sk(i) = nan;
+%         ku(i) = nan;
+%     end
+% end
 
 % 3.a. Intercomparison of results from Vuong's Test: easily see best
 % distribution at each depth.
-vuongRes = zeros(1,length(pr));
+% Vuong = 1 => Normal better.
+% Vuong = 2 => Lognormal better.
+vuongRes = nan(length(OUT_L2.obs),1);
 rV(isnan(rV)) = 0;
 
-for i = 1:length(pr)
-    if rV(1,i) > 0
+for i = 1:length(OUT_L2.obs)
+    %disp(i);
+    if OUT_L2.rV(1,i) > 0
         vuongRes(i) = 1;
-    elseif rV(1,i) < 0
+    elseif OUT_L2.rV(1,i) < 0
         vuongRes(i) = 2;
     end
 end
 rV(rV==0) = nan;
-%% L2 Histograms.
+
+
 % pB10, C_out
 
 C_out(C_out < 0) = nan;
 
+
+checkedPressure = 10;
 figure;
-histogram(C_out(pB10==-100));
+histogram(C_out(pB10==checkedPressure),10);
+title("L2 (p = "+string(checkedPressure)+" dbar)");
+xlabel("chl-a (ng/kg)");
+ylabel("No. of obs.");
+
 
 % histfit variation
 % figure
 % histfit(C_out(pB10==10),10,"lognormal");
 
-%% L2 A-D. Plot.
+%% L2. Statistical diagram.
 % plotks2 code.
 figure
-n = length(pr);
+n = length(OUT_L2.obs);
 
 alphaHy = 0.005;
-alphaLlr = 0.1;
+alphaLlr = 0.005;
 
 % Lognormal family: generate theoretical skewness and kurtosis
 sigTh = linspace(0,1,1000);
@@ -973,29 +1094,34 @@ subplot(1,3,[1 2])
 xline(alphaHy,'-','\color{black}\alpha=0.005',LineWidth=1.5,Color="#808080",HandleVisibility="off",LabelOrientation="horizontal",LabelHorizontalAlignment="center",FontSize=13);
 hold on
 for i = 1:n
-    if vuongRes(i) == 1 && ad(1,i) > alphaHy & pV(1,i) > alphaLlr && ad(2,i) > alphaHy
-        plot(ad(1,i),pr(i),'square','Color','#c51b7d','MarkerSize',15,HandleVisibility='off');
-    elseif vuongRes(i) == 1 && ad(1,i) > alphaHy & pV(1,i) < alphaLlr && ad(2,i) > alphaHy
-        plot(ad(1,i),pr(i),'square','Color','#c51b7d','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
-    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & pV(1,i) > alphaLlr && ad(1,i) > alphaHy
-        plot(ad(2,i),pr(i),'square','Color','#4d9221','MarkerSize',15,HandleVisibility='off');
-    elseif vuongRes(i) == 2 && ad(2,i) > alphaHy & pV(1,i) < alphaLlr && ad(1,i) > alphaHy
-        plot(ad(2,i),pr(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+    % Normal = #c51b7d.
+    % Lognormal = #4d9221.
+    if vuongRes(i) == 1 && ad(2,i) > alphaHy & pV(1,i) > alphaLlr && ad(1,i) > alphaHy
+        plot(ad(2,i),OUT_L2.pXX(i),'square','Color','#c51b7d','MarkerSize',15,HandleVisibility='off');
+    elseif vuongRes(i) == 1 && ad(2,i) > alphaHy & pV(1,i) < alphaLlr && ad(1,i) > alphaHy
+        plot(ad(2,i),OUT_L2.pXX(i),'square','Color','#c51b7d','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
+    elseif vuongRes(i) == 2 && ad(1,i) > alphaHy & pV(1,i) > alphaLlr && ad(2,i) > alphaHy
+        plot(ad(1,i),OUT_L2.pXX(i),'square','Color','#4d9221','MarkerSize',15,HandleVisibility='off');
+    elseif vuongRes(i) == 2 && ad(1,i) > alphaHy & pV(1,i) < alphaLlr && ad(2,i) > alphaHy
+        plot(ad(1,i),OUT_L2.pXX(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
     end
 end
-plot(ad(1,:),pr,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5,'HandleVisibility','off');
-plot(ad(2,:),pr,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5,'HandleVisibility','off');
+plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > '+string(alphaLlr)+'');        
+plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < '+string(alphaLlr)+'');    
+plot(ad(2,:),OUT_L2.pXX,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5); %,'HandleVisibility','off');
+plot(ad(1,:),OUT_L2.pXX,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5); %'HandleVisibility','off');
 xlabel('A-D $p$-value',Interpreter='latex',FontSize=13);
 set(gca, 'XScale', 'log');
 hold off
 grid minor;
+legend();
 ylim([-60 60]);
 xlim([0.1*alphaHy 1]);
 set(gca,'YDir','reverse');
 ylabel('Pressure [dbar]',Interpreter='latex',FontSize=13);
 sgtitle("L2","Interpreter","latex");
 
-%% L2 Skewness/Kurtosis. (Fig. 4b)
+%% L2. Skewness-kurtosis.
 
 % Output only skewness/kurtosis values at depths defined by these limits.
 % limits = [-60 60]

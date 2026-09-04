@@ -40,7 +40,7 @@ function [ax,p,ks,obs,rV,pV,ad,cOut,pOut] = L1_helper(D,maxMld,threshold,testSel
 % NOTE: binLimA and binLimB -> limits of y-axis in terms of bins. 
 % limits -> limits of y-axis in dbar.
 alphaHy = 0.005;
-alphaLlr = 0.10;
+alphaLlr = 0.005;
 binLimA = 0.5;
 binLimB = 10.5;
 limits = [0 100];
@@ -221,47 +221,55 @@ pOutB = pb10;
 % of these distributions to determine which is best in the case that both
 % are deemed good fits by the previous hypothesis test. Finally, the
 % skewness and kurtosis of the data is recorded.
-obs = nan(20,1); n = 20; depth = 5:10:200; ad = nan(4,20); ks = nan(5,20);
-for i = 1:n
-    % find concentration X_i at binned pressure i
-    X_i = cOutB(pOutB==i);
-    % apply statistical tests to the data   
-    if length(X_i) > 3
-        gammaParams = mle(X_i,"distribution","Gamma");
-        pdG = makedist("Gamma",gammaParams(1),gammaParams(2));
-        [~,ks(:,i),~] = statsplot2(X_i,'noplot');
-        [~,ad(2,i)] = adtest(X_i,"Distribution","logn","Alpha",0.005);
-        [~,ad(1,i)] = adtest(X_i,"Distribution","norm","Alpha",0.005);
-        [~,ad(3,i)] = adtest(X_i,"Distribution","weibull");
-        [~,ad(4,i)] = adtest(X_i,Distribution=pdG,MCTol=0.05);
-        [rV(:,i),pV(:,i)] = bbvuong(X_i);
-    end
-    obs(i) = length(X_i);
-    clear X_i;
-end
 
-% Remove values that do not meet the threshold
-for i = 1:n
-    if obs(i) < threshold
-        ad(:,i) = nan;
-        ks(:,i) = nan;
-        rV(:,i) = nan;
-        pV(:,i) = nan;
-    end
-end
+IN.X = cOutB; IN.pB = pOutB; IN.N = 20; IN.threshold = threshold; IN.hypTest = "ad";
+IN.useVuong = true;
+OUT = calculateStatistics(IN);
 
-% Remove these nan values
-tmp = [];
-for i = 1:n
-    if ~isnan(sum(ad(:,i)))
-        tmp = [tmp i];
-    end
-end
-p = depth(tmp);
-rV = rV(:,tmp);
-pV = pV(:,tmp);
-ks = ks(:,~all(isnan(ks)));
-ad = ad(:,~all(isnan(ad)));
+ks = OUT.ks; ad = OUT.ad; p = OUT.pXX; pB = OUT.pB; obs = OUT.obs;
+rV = OUT.rV; pV = OUT.pV;
+
+% obs = nan(20,1); n = 20; depth = 5:10:200; ad = nan(4,20); ks = nan(5,20);
+% for i = 1:n
+%     % find concentration X_i at binned pressure i
+%     X_i = cOutB(pOutB==i);
+%     % apply statistical tests to the data   
+%     if length(X_i) > 3
+%         gammaParams = mle(X_i,"distribution","Gamma");
+%         pdG = makedist("Gamma",gammaParams(1),gammaParams(2));
+%         [~,ks(:,i),~] = statsplot2(X_i,'noplot');
+%         [~,ad(2,i)] = adtest(X_i,"Distribution","logn","Alpha",0.005);
+%         [~,ad(1,i)] = adtest(X_i,"Distribution","norm","Alpha",0.005);
+%         [~,ad(3,i)] = adtest(X_i,"Distribution","weibull");
+%         [~,ad(4,i)] = adtest(X_i,Distribution=pdG,MCTol=0.05);
+%         [rV(:,i),pV(:,i)] = bbvuong(X_i);
+%     end
+%     obs(i) = length(X_i);
+%     clear X_i;
+% end
+% 
+% % Remove values that do not meet the threshold
+% for i = 1:n
+%     if obs(i) < threshold
+%         ad(:,i) = nan;
+%         ks(:,i) = nan;
+%         rV(:,i) = nan;
+%         pV(:,i) = nan;
+%     end
+% end
+% 
+% % Remove these nan values
+% tmp = [];
+% for i = 1:n
+%     if ~isnan(sum(ad(:,i)))
+%         tmp = [tmp i];
+%     end
+% end
+% p = depth(tmp);
+% rV = rV(:,tmp);
+% pV = pV(:,tmp);
+% ks = ks(:,~all(isnan(ks)));
+% ad = ad(:,~all(isnan(ad)));
 
 
 % Intercomparison of results from Vuong's Test: easily see best
@@ -338,8 +346,8 @@ if suppressFig == false
                     plot(ad(2,i),p(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
                 end
             end
-            plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > 0.1)');        
-            plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < 0.1)');        
+            plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > '+string(alphaLlr)+')');        
+            plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < '+string(alphaLlr)+')');        
             plot(ad(1,:),p,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5);
             plot(ad(2,:),p,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5);
         end
@@ -356,7 +364,7 @@ if suppressFig == false
     if season == 0
         legend('Position',[0.4 0.7 0.07 0.12],FontSize=11);
     else
-        legend(Location="best",FontSize=11);
+        legend(Location="best",FontSize=9);
     end
     
     

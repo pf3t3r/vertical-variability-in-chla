@@ -39,7 +39,7 @@ end
 % Options for the plot.
 limits = [0 100];
 alphaHy = 0.005;
-alphaLlr = 0.10;
+alphaLlr = 0.005;
 
 n = length(pIn);
 
@@ -53,52 +53,54 @@ for k = 1:length(X(1,:))
     end
 end
 
+
+
 % Apply statistical analysis. Determine the A-D p-value 'ad', the K-S 
 % p-value 'ks', the Vuong Log-Likelihood Ratio 'rV' (and associated
 % p-value 'pV'), the number of observations per depth 'obs'.
-ad = nan(4,n); ks = nan(5,n); rV = nan(10,n); pV = nan(10,n);
-obs = nan(1,n);
-
-for i = 1:n
-    tmp = mldCon(i,:);
-    tmp(isnan(tmp) | tmp<0) = 0;
-    tmp(tmp==0) = [];
-    if length(tmp) > 3
-        gammaParams = mle(tmp,"distribution","Gamma");
-        pdG = makedist("Gamma",gammaParams(1),gammaParams(2));
-        [~,ks(:,i),~] = statsplot2(tmp,'noplot');
-        [~,ad(2,i)] = adtest(tmp,"Distribution","logn");
-        [~,ad(1,i)] = adtest(tmp,"Distribution","norm");
-        [~,ad(3,i)] = adtest(tmp,"Distribution","weibull");
-        [~,ad(4,i)] = adtest(tmp,Distribution=pdG,MCTol=0.05);
-        [rV(:,i),pV(:,i)] = bbvuong(tmp);
-        obs(i) = length(tmp);
-    end
-end
-
-% Set values = NaN if they do not meet the threshold (i.e. there are
-% insufficient values at that depth).
-for i = 1:n
-    if obs(i) < threshold
-        ks(:,i) = nan;  
-        ad(:,i) = nan;
-        rV(:,i) = nan;
-        pV(:,i) = nan;
-    end
-end
-
-% Remove those NaN values.
-tmp = [];
-for i = 1:n
-    if ~isnan(sum(ad(:,i)))
-        tmp = [tmp i];
-    end
-end
-tr = pIn(tmp);
-rV = rV(:,tmp);
-pV = pV(:,tmp);
-ad = ad(:,~all(isnan(ad)));
-ks = ks(:,~all(isnan(ks)));
+% ad = nan(4,n); ks = nan(5,n); rV = nan(10,n); pV = nan(10,n);
+% obs = nan(1,n);
+% 
+% for i = 1:n
+%     tmp = mldCon(i,:);
+%     tmp(isnan(tmp) | tmp<0) = 0;
+%     tmp(tmp==0) = [];
+%     if length(tmp) > 3
+%         gammaParams = mle(tmp,"distribution","Gamma");
+%         pdG = makedist("Gamma",gammaParams(1),gammaParams(2));
+%         [~,ks(:,i),~] = statsplot2(tmp,'noplot');
+%         [~,ad(2,i)] = adtest(tmp,"Distribution","logn");
+%         [~,ad(1,i)] = adtest(tmp,"Distribution","norm");
+%         [~,ad(3,i)] = adtest(tmp,"Distribution","weibull");
+%         [~,ad(4,i)] = adtest(tmp,Distribution=pdG,MCTol=0.05);
+%         [rV(:,i),pV(:,i)] = bbvuong(tmp);
+%         obs(i) = length(tmp);
+%     end
+% end
+% 
+% % Set values = NaN if they do not meet the threshold (i.e. there are
+% % insufficient values at that depth).
+% for i = 1:n
+%     if obs(i) < threshold
+%         ks(:,i) = nan;  
+%         ad(:,i) = nan;
+%         rV(:,i) = nan;
+%         pV(:,i) = nan;
+%     end
+% end
+% 
+% % Remove those NaN values.
+% tmp = [];
+% for i = 1:n
+%     if ~isnan(sum(ad(:,i)))
+%         tmp = [tmp i];
+%     end
+% end
+% tr = pIn(tmp);
+% rV = rV(:,tmp);
+% pV = pV(:,tmp);
+% ad = ad(:,~all(isnan(ad)));
+% ks = ks(:,~all(isnan(ks)));
 
 % Vuong's Log-Likelihood Ratio (V-LLR) Test: Set up the visualisation.
 vuongRes = nan(1,length(tr));
@@ -175,8 +177,8 @@ else
                 plot(ad(2,i),tr(i),'square','Color','#4d9221','MarkerSize',15,'LineWidth',4,HandleVisibility='off');
             end
         end
-        plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > 0.1)');        
-        plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < 0.1)');        
+        plot(nan,nan,'square','Color','#808080','MarkerSize',15,'DisplayName','V-LLR best fit (p > '+string(alphaLlr)+')');        
+        plot(nan,nan,'square','Color','#808080','MarkerSize',15,'LineWidth',4,'DisplayName','V-LLR best fit (p < '+string(alphaLlr)+')');        
         plot(ad(1,:),tr,'o-','Color','#c51b7d','DisplayName','Normal','LineWidth',1.5,'MarkerSize',5);
         plot(ad(2,:),tr,'o-','Color','#4d9221','DisplayName','Lognormal','LineWidth',1.5,'MarkerSize',5);
     end
@@ -189,5 +191,5 @@ end
 grid minor;
 ylim(limits); xlim([0.1*alphaHy 1]); ylabel('Pressure [dbar]',Interpreter='latex',FontSize=13);
 set(gca,'YDir','reverse');
-legend(Location="best",FontSize=11);
+legend(Location="best",FontSize=9);
 end

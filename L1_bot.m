@@ -6,7 +6,7 @@
 % which did not easily allow for testing of other distributions.
 
 clear; clc; close all;
-addpath("func\");
+addpath("func\"); addpath("data\");
 set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 15 15]);
 
 % Options and Test Cases.
@@ -72,22 +72,22 @@ end
 
 if principle == true
 
-    tmpX = ": L1";
+    tmpX = "L1";
    
     % HPLC chl-a
     tmp = importdata("data/hot_chla.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",logAxes);
-    sgtitle("chl-$a$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$a$: "+tmpX,"Interpreter","latex");
     
     % chl-b
     tmp = importdata("data/hot_chlb.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",logAxes);
-    sgtitle("chl-$b$"+tmpX,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpX,"Interpreter","latex");
     
     % Particulate Carbon
     tmp = importdata("data/hot_pc.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",logAxes);
-    sgtitle("Particulate Carbon"+tmpX,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpX,"Interpreter","latex");
 end
 
 %% Seasonal Analysis: A-D
@@ -97,24 +97,24 @@ if seasonal == true
     set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 10 15]);
 
     %%% WINTER
-    tmpx = ": L1 Winter";
+    tmpx = "L1 Winter";
 
     % chla
     tmp = importdata("data/hot_chla.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,1);
-    sgtitle("chl-$a$" + tmpx,"Interpreter","latex");
+    sgtitle("" + tmpx,"Interpreter","latex");
     clear tmp;
     
     % chlb (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,1);
-    sgtitle("chl-$b$"+tmpx,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,1);
-    sgtitle("Particulate Carbon"+tmpx,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     %%% SPRING
@@ -123,60 +123,60 @@ if seasonal == true
     % chla
     tmp = importdata("data/hot_chla.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,2);
-    sgtitle("chl-$a$" + tmpx,"Interpreter","latex");
+    sgtitle("" + tmpx,"Interpreter","latex");
     clear tmp;
     
     % chlb (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,2);
-    sgtitle("chl-$b$"+tmpx,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,2);
-    sgtitle("Particulate Carbon"+tmpx,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpx,"Interpreter","latex");
     clear tmp;
 
     %%% SUMMER
-    tmpx = ": L1 Summer";
+    tmpx = "L1 Summer";
 
     % chla
     tmp = importdata("data/hot_chla.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,3);
-    sgtitle("chl-$a$" + tmpx,"Interpreter","latex");
+    sgtitle("" + tmpx,"Interpreter","latex");
     clear tmp;
 
     % chlb (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,3);
-    sgtitle("chl-$b$"+tmpx,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,3);
-    sgtitle("Particulate Carbon"+tmpx,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     %%% AUTUMN
-    tmpx = ": L1 Autumn"; tmpT = "-ad-04";
+    tmpx = "L1 Autumn"; tmpT = "-ad-04";
 
     % chla
     tmp = importdata("data/hot_chla.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,4);
-    sgtitle("chl-$a$" + tmpx,"Interpreter","latex");
+    sgtitle("" + tmpx,"Interpreter","latex");
     clear tmp;
     
     % chlb (88-21)
     tmp = importdata("data/hot_chlb.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,4);
-    sgtitle("chl-$b$"+tmpx,"Interpreter","latex");
+    sgtitle("chl-$b$: "+tmpx,"Interpreter","latex");
     clear tmp;
     
     % Particulate Carbon (89-21)
     tmp = importdata("data/hot_pc.txt");
     L1_helper(tmp,maxMld,thresh,testSel,"ad",true,4);
-    sgtitle("Particulate Carbon"+tmpx,"Interpreter","latex");
+    sgtitle("Particulate Carbon: "+tmpx,"Interpreter","latex");
     clear tmp;
 end

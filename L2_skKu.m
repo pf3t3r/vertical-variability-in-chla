@@ -1,12 +1,12 @@
 % Skewness-kurtosis analysis of the DCM layer (L2) at Station ALOHA for chl-a.
 % We import the data, process it, and calculate the skewness and kurtosis.
 
-clear; clc; close all;
+clear; clc; close all; addpath("output\");
 set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 10 15]);
 
 % Load maximum mixed-layer depth 'MLD' and cruise-averaged deep chlorophyll
 % maximum depth 'DCM'.
-mld = load("mldVals.mat").maxMld; % single maximum per cruise
+mld = load("output/mldVals.mat").maxMld; % single maximum per cruise
 dcm = load("output/dcm.mat").dcm; % pDcm + sigmaDcm (all casts, crn 1-329)
 
 % Options and test cases.
@@ -22,15 +22,15 @@ season = 0;         % if zero, run default analysis. otherwise run seasonal
 showYLabel = true;  % turn off for paper.
 showLegend = true;  % turn off for paper.
 
-% Data Import.
-tmp = importdata("data/hot_chla.txt");
+% Select data to load. See 'data' subfolder.
+tmp = importdata("data/hot_pc.txt"); titleName = "";
 id = num2str(tmp.data(:,1));
 p = tmp.data(:,4);
 c = tmp.data(:,5);
 
 %% Seasonal analysis.
 if season == 0
-    tmpT = ": L2";
+    tmpT = "L2";
 elseif season ~= 0
     botidIn = tmp.data(:,2);
     n = length(p);
@@ -307,8 +307,8 @@ end
 ax = figure;
 scatter(0,3,72,[0.7725490196078432 0.10588235294117647 0.49019607843137253],'DisplayName','Normal',Marker='pentagram',LineWidth=2.5);
 hold on
-plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#4d9221',LineStyle='-',LineWidth=1.3);
-plot(skLognN,kuLognN,'Color','#4d9221',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
+plot(skLogn,kuLogn,'DisplayName','Lognormal','Color','#808080',LineStyle='-',LineWidth=1.3);
+plot(skLognN,kuLognN,'Color','#808080',LineStyle='-',LineWidth=1.3,HandleVisibility='off');
 if testSel == 4
     plot(skWbl,kuWbl,'DisplayName','Weib.','Color','#d3d3d3',LineStyle='-',LineWidth=1.7);
     plot(skWblN,kuWblN,'Color','#d3d3d3',LineStyle='-',LineWidth=1.7,HandleVisibility='off');
@@ -324,7 +324,7 @@ cbar.Direction = "reverse";
 cbar.Ticks = 1:1:length(tr2);
 cbar.TickLabels = tr2;
 cbar.Label.String = "P [dbar]";
-cbar.Label.Position = [0.7 1-0.7];
+cbar.Label.Position = [0.7 0.4];
 cbar.Label.Rotation = 0;
 hold off
 grid minor;
@@ -338,4 +338,4 @@ end
 if showLegend == true
     legend(Location="best");
 end
-title("chl-$a$"+tmpT,"Interpreter","latex",FontSize=13);
+title(titleName+tmpT,"Interpreter","latex",FontSize=13);

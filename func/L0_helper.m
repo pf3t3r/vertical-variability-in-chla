@@ -137,34 +137,44 @@ end
 
 %% K-S: bottle chla
 
-n2 = 20;
-ks = nan(5,n2);
-obs = nan(1,n2);
-ad = nan(2,n2);
+IN.X = X; IN.pB = pB; IN.N = 20; IN.threshold = threshold; IN.hypTest = 'ad';
 
-% Calculate KS p-value, skewness, kurtosis
-for i = 1:n2
-    % find concentration X_i at binned pressure i
-    X_i = X(pB==i);
-    % remove negative or null values
-    X_i(X_i <= 0) = [];
-    % apply KS test to X_i (only when at least 3 values at binned pressure)
-    if length(X_i) > 3
-        if strcmp(hypTest,'ks')
-            [~,ks(:,i),~] = statsplot2(X_i,'noplot');
-        else
-            [~,ad(1,i)] = adtest(X_i,'Distribution','logn','alpha',0.005);
-            [~,ad(2,i)] = adtest(X_i,'Distribution','norm','alpha',0.005);
-        end
-    end
-    obs(i) = length(X_i);
-    clear X_i;
-end
+OUT = calculateStatistics(IN);
 
-ks(:,obs<threshold) = nan;
-ad(:,obs<threshold) = nan;
+ks = OUT.ks;
+ad = OUT.ad;
+pXX = OUT.pXX;
+pB = OUT.pB;
+obs = OUT.obs;
 
-pXX = 5:10:195;
+% n2 = 20;
+% ks = nan(5,n2);
+% obs = nan(1,n2);
+% ad = nan(2,n2);
+% 
+% % Calculate KS p-value, skewness, kurtosis
+% for i = 1:n2
+%     % find concentration X_i at binned pressure i
+%     X_i = X(pB==i);
+%     % remove negative or null values
+%     X_i(X_i <= 0) = [];
+%     % apply KS test to X_i (only when at least 3 values at binned pressure)
+%     if length(X_i) > 3
+%         if strcmp(hypTest,'ks')
+%             [~,ks(:,i),~] = statsplot2(X_i,'noplot');
+%         else
+%             [~,ad(1,i)] = adtest(X_i,'Distribution','logn','alpha',0.005);
+%             [~,ad(2,i)] = adtest(X_i,'Distribution','norm','alpha',0.005);
+%         end
+%     end
+%     obs(i) = length(X_i);
+%     clear X_i;
+% end
+% 
+% ks(:,obs<threshold) = nan;
+% ad(:,obs<threshold) = nan;
+% 
+% pXX = 5:10:195;
 
 if figSuppress == false
     ax = figure;
@@ -176,7 +186,7 @@ if figSuppress == false
     yticklabels({});
     set(gca,"YDir","reverse");
     xlabel("No. of Obs.",Interpreter="latex",FontSize=13);
-    
+
     subplot(1,3,[1 2])
     xline(alphaHy,'-','\color{black}\alpha=0.005',LineWidth=1.5,Color="#808080",HandleVisibility="off",LabelOrientation="horizontal",LabelHorizontalAlignment="center",FontSize=13); 
     hold on

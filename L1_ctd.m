@@ -7,7 +7,7 @@
 % Shapiro-Wilks which did not easily allow for testing of other 
 % distributions.
 
-close all; clc; clear;
+close all;clc; clear;
 addpath("func\"); addpath("output\");
 set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 15 15]);
 
@@ -130,24 +130,24 @@ set(gca,"YDir","reverse"); set(gca,'xscale','log'); grid on;
 %% Principal Analysis: A-D.
 if principalAnalysisAd == true
 
-    tmpT = "";
+    tmpT = "L1";
     
     % CHL-A
     L1_ctdHelper(epN,pIn,maxMld,threshAd,noOfDists,"ad");
-    sgtitle("chloropigment fluorescence");
+    sgtitle("chl-$a$: "+tmpT);
     % save("output\L1_ctd\hot_fluo_L1_L2.mat","p","ad","ks","obs");
 
     % CT
     L1_ctdHelper(CT,pIn,maxMld,threshAd,noOfDists,"ad");
-    sgtitle("\Theta");
+    sgtitle(""+tmpT);
     
     % SA
     L1_ctdHelper(SA,pIn,maxMld,threshAd,noOfDists,"ad");
-    sgtitle("CTD S_A 88-21: L1"+tmpT);
+    sgtitle("CTD S_A 88-21: "+tmpT);
    
     % sigma0
     L1_ctdHelper(sigma0,pIn,maxMld,threshAd,noOfDists,"ad");
-    sgtitle("CTD \sigma_0 88-21: L1"+tmpT);
+    sgtitle("CTD \sigma_0 88-21: "+tmpT);
    
     % N^2 Stratification
     L1_ctdHelper(N2,p_mid(:,1),maxMld,threshAd,noOfDists,"ad");

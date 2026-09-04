@@ -1,7 +1,8 @@
 % Skewness-kurtosis analysis of the mixed layer (L1) at Station ALOHA for chl-a.
 % We import the data, process it, and calculate the skewness and kurtosis.
 
-clear; clc; close all;
+clear; clc;
+close all;
 set(groot, "defaultFigureUnits", "centimeters", "defaultFigurePosition", [3 3 10 15]);
 
 % Options and Test Cases.
@@ -14,8 +15,10 @@ season = 0;     % if zero, run default analysis. otherwise run seasonal
                 % analysis (1 = winter (DJF), 2 = spring, 3 = summer, 4 =
                 % autumn)
 
-% Load Data: chl-a and mixed layer depth 'mld'
-tmp = importdata("data/hot_chla.txt");
+% Select data to load. See 'data' folder.
+tmp = importdata("data/hot_pc.txt"); titleName = "";
+
+% Load MLD data.
 mld = load("output/mldVals.mat").maxMld;
 
 pIn = tmp.data(:,4);        % pressure 
@@ -25,7 +28,7 @@ idIn = tmp.data(:,1);       % bottle ID, needed for seasonal analysis
 
 %% Seasonal analysis code.
 if season == 0
-    tmpT = ": L1";
+    tmpT = "L1";
 elseif season ~= 0
     botidIn = tmp.data(:,2);
     n = length(pIn);
@@ -301,7 +304,7 @@ if length(p) > 3
     cbar = colorbar;
     cbar.Ticks = 1:1:length(p);
     cbar.TickLabels = p;
-    cbar.Label.Position = [0.7 1-0.35];
+    cbar.Label.Position = [0.7 0.8];
 elseif length(p) == 3
     c = [0.9686    0.9882    0.9608; 0.4579    0.7700    0.4643;  0.0000    0.2667    0.1059];
     scatter(sk,ku,54,c,"filled","o",HandleVisibility="off");
@@ -327,4 +330,4 @@ grid minor;
 ylim([1 kurtLimB]); xlim([skewLimA skewLimB]);
 xlabel('Skewness','FontSize',13,'Interpreter','latex'); ylabel('Kurtosis',FontSize=13,Interpreter='latex');
 lgd = legend('Location','best');
-title('chl-$a$'+tmpT,'Interpreter','latex','FontSize',13);
+title(titleName+tmpT,'Interpreter','latex','FontSize',13);
